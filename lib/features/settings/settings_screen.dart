@@ -113,6 +113,57 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               Text(
+                'Screen-Off / Background Mode',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Card(
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      title: const Text('Background Recitation (Opt-In)'),
+                      subtitle: const Text(
+                        'Continue counting repetitions when screen is locked or app is backgrounded.',
+                      ),
+                      value: settings.backgroundListeningOptIn,
+                      onChanged: (val) {
+                        settings.setBackgroundListeningOptIn(
+                          val,
+                          backgroundService: deps.backgroundListeningService,
+                        );
+                      },
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 16,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Privacy safeguard: Disabled by default. Microphone is never active silently and immediately releases when session finishes.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Text(
                 'Appearance',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,

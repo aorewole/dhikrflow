@@ -15,6 +15,8 @@ abstract interface class SettingsRepository {
   Future<void> setAutoSimulateVoice(bool enabled);
   Future<RecognitionConfig> getRecognitionConfig();
   Future<void> setRecognitionConfig(RecognitionConfig config);
+  Future<bool> getBackgroundListeningOptIn();
+  Future<void> setBackgroundListeningOptIn(bool enabled);
 }
 
 /// SharedPreferences implementation of [SettingsRepository].
@@ -23,6 +25,7 @@ class SharedPrefsSettingsRepository implements SettingsRepository {
   static const _keyThemeMode = 'setting_theme_mode';
   static const _keyAutoSimulate = 'setting_auto_simulate_voice';
   static const _keyRecognitionConfig = 'setting_recognition_config';
+  static const _keyBackgroundListening = 'setting_background_listening_opt_in';
 
   final SharedPreferences _prefs;
 
@@ -79,5 +82,15 @@ class SharedPrefsSettingsRepository implements SettingsRepository {
   Future<void> setRecognitionConfig(RecognitionConfig config) async {
     final rawJson = jsonEncode(config.toJson());
     await _prefs.setString(_keyRecognitionConfig, rawJson);
+  }
+
+  @override
+  Future<bool> getBackgroundListeningOptIn() async {
+    return _prefs.getBool(_keyBackgroundListening) ?? false;
+  }
+
+  @override
+  Future<void> setBackgroundListeningOptIn(bool enabled) async {
+    await _prefs.setBool(_keyBackgroundListening, enabled);
   }
 }

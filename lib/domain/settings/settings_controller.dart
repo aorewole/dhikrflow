@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/repositories/settings_repository.dart';
+import '../../services/background_listening_service.dart';
 import '../recognition/recognition_config.dart';
 
 /// Controller for user preferences and application configuration.
@@ -11,6 +12,7 @@ class SettingsController extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   bool _autoSimulateVoiceInDebug = false;
   RecognitionConfig _recognitionConfig = RecognitionConfig.balanced;
+  bool _backgroundListeningOptIn = false;
 
   SettingsController({this.repository});
 
@@ -18,6 +20,7 @@ class SettingsController extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   bool get autoSimulateVoiceInDebug => _autoSimulateVoiceInDebug;
   RecognitionConfig get recognitionConfig => _recognitionConfig;
+  bool get backgroundListeningOptIn => _backgroundListeningOptIn;
 
   /// Load persisted settings from repository.
   Future<void> loadSettings() async {
@@ -26,6 +29,7 @@ class SettingsController extends ChangeNotifier {
     _themeMode = await repository!.getThemeMode();
     _autoSimulateVoiceInDebug = await repository!.getAutoSimulateVoice();
     _recognitionConfig = await repository!.getRecognitionConfig();
+    _backgroundListeningOptIn = await repository!.getBackgroundListeningOptIn();
     notifyListeners();
   }
 
@@ -56,6 +60,18 @@ class SettingsController extends ChangeNotifier {
       _autoSimulateVoiceInDebug = value;
       notifyListeners();
       await repository?.setAutoSimulateVoice(value);
+    }
+  }
+
+  Future<void> setBackgroundListeningOptIn(
+    bool value, {
+    BackgroundListeningService? backgroundService,
+  }) async {
+    if (_backgroundListeningOptIn != value) {
+      _backgroundListeningOptIn = value;
+      notifyListeners();
+      await repository?.setBackgroundListeningOptIn(value);
+      await backgroundService?.setOptedIn(value);
     }
   }
 }

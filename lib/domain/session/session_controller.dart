@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/repositories/session_repository.dart';
+import '../../services/background_listening_service.dart';
 import '../events/count_events.dart';
 import '../models/dhikr_definition.dart';
 import '../models/dhikr_session.dart';
@@ -20,6 +21,7 @@ class SessionController extends ChangeNotifier {
   final RecognitionEngine recognitionEngine;
   final SessionRepository sessionRepository;
   final SettingsController? settingsController;
+  final BackgroundListeningService? backgroundListeningService;
 
   DhikrSession? _currentSession;
   DhikrDefinition? _activeDhikr;
@@ -33,6 +35,7 @@ class SessionController extends ChangeNotifier {
     required this.recognitionEngine,
     required this.sessionRepository,
     this.settingsController,
+    this.backgroundListeningService,
   });
 
   DhikrSession? get currentSession => _currentSession;
@@ -78,6 +81,7 @@ class SessionController extends ChangeNotifier {
     });
 
     await recognitionEngine.start(dhikr);
+    await backgroundListeningService?.onSessionStarted(dhikr);
     sessionRepository.saveActiveDraftSession(_currentSession);
     notifyListeners();
   }
@@ -107,6 +111,7 @@ class SessionController extends ChangeNotifier {
     });
 
     await recognitionEngine.start(dhikr);
+    await backgroundListeningService?.onSessionStarted(dhikr);
     sessionRepository.saveActiveDraftSession(_currentSession);
     notifyListeners();
   }
@@ -188,6 +193,7 @@ class SessionController extends ChangeNotifier {
 
     await sessionRepository.saveActiveDraftSession(_currentSession);
     await recognitionEngine.pause();
+    await backgroundListeningService?.onSessionStopped();
     notifyListeners();
   }
 
@@ -205,6 +211,9 @@ class SessionController extends ChangeNotifier {
 
     await sessionRepository.saveActiveDraftSession(_currentSession);
     await recognitionEngine.resume();
+    if (_activeDhikr != null) {
+      await backgroundListeningService?.onSessionStarted(_activeDhikr!);
+    }
     notifyListeners();
   }
 
@@ -214,6 +223,7 @@ class SessionController extends ChangeNotifier {
 
     _durationTimer?.cancel();
     await recognitionEngine.stop();
+    await backgroundListeningService?.onSessionStopped();
     _countSubscription?.cancel();
     _stateSubscription?.cancel();
 
@@ -242,6 +252,7 @@ class SessionController extends ChangeNotifier {
 
     _durationTimer?.cancel();
     await recognitionEngine.stop();
+    await backgroundListeningService?.onSessionStopped();
     _countSubscription?.cancel();
     _stateSubscription?.cancel();
     await sessionRepository.clearActiveDraftSession();
@@ -277,6 +288,7 @@ class SessionController extends ChangeNotifier {
     _countSubscription?.cancel();
     _stateSubscription?.cancel();
     recognitionEngine.dispose();
+    backgroundListeningService?.onSessionStopped();
     super.dispose();
   }
 }

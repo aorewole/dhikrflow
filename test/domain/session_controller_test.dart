@@ -6,6 +6,7 @@ import 'package:dhikr_counter/domain/models/dhikr_session.dart';
 import 'package:dhikr_counter/domain/recognition/recognition_engine.dart';
 import 'package:dhikr_counter/domain/session/session_controller.dart';
 import 'package:dhikr_counter/recognition/mock_recognition_engine.dart';
+import 'package:dhikr_counter/services/background_listening_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -214,6 +215,38 @@ void main() {
       expect(controller.currentSession?.remaining, 0);
       expect(controller.currentSession?.isTargetReached, isTrue);
       expect(controller.currentSession?.status, SessionStatus.active);
+    });
+
+    test('Phase 10: background listening lifecycle is governed by session state', () async {
+      final bgService = DefaultBackgroundListeningService(initialOptIn: true);
+      final bgController = SessionController(
+        recognitionEngine: mockEngine,
+        sessionRepository: sessionRepo,
+        backgroundListeningService: bgService,
+      );
+
+      // Session start activates background service (if platform supported & opted in)
+      await bgController.startSession(dhikr: testDhikr);
+      if (bgService.isSupported) {
+        expect(bgService.isActive, isTrue);
+      }
+
+      // Pause releases background service immediately
+      await bgController.pauseSession();
+      expect(bgService.isActive, isFalse);
+
+      // Resume re-engages background service
+      await bgController.resumeSession();
+      if (bgService.isSupported) {
+        expect(bgService.isActive, isTrue);
+      }
+
+      // Complete session releases background service immediately
+      await bgController.completeSession();
+      expect(bgService.isActive, isFalse);
+
+      bgController.dispose();
+      bgService.dispose();
     });
   });
 }
