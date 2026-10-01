@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import '../domain/events/count_events.dart';
 import '../domain/models/dhikr_definition.dart';
 import '../domain/recognition/recognition_engine.dart';
@@ -50,6 +51,7 @@ class MockRecognitionEngine implements RecognitionEngine {
       await pipeline!.start();
       _segmentSubscription?.cancel();
       _segmentSubscription = pipeline!.speechSegments.listen((segment) {
+        debugPrint('[MockRecognitionEngine] Speech segment detected: ${segment.duration.inMilliseconds}ms');
         if (_currentState == RecognitionState.listening) {
           // In Phase 3, each detected speech segment triggers an accepted count event
           simulateVoiceCount(confidence: 0.95, repetitions: 1);

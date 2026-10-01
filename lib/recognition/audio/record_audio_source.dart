@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 
 import 'audio_chunk.dart';
@@ -13,7 +14,7 @@ class RecordAudioSource implements AudioSource {
   final AudioRecorder _recorder;
   final StreamController<AudioChunk> _chunkController =
       StreamController<AudioChunk>.broadcast();
-  StreamSubscription<List<int>>? _streamSubscription;
+  StreamSubscription<Uint8List>? _streamSubscription;
   bool _isRecording = false;
 
   RecordAudioSource({AudioRecorder? recorder})
@@ -44,31 +45,50 @@ class RecordAudioSource implements AudioSource {
       throw StateError('Microphone permission not granted.');
     }
 
-    const config = RecordConfig(
-      encoder: AudioEncoder.pcm16bits,
-      sampleRate: 16000,
-      numChannels: 1,
-      autoGain: true,
-      echoCancel: true,
-      noiseSuppress: true,
-    );
+    const sampleRatesToTry = [44100, 48000, 16000];
+    Stream<Uint8List>? rawStream;
+    int activeSampleRate = 44100;
 
-    final rawStream = await _recorder.startStream(config);
+    for (final rate in sampleRatesToTry) {
+      try {
+        final config = RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: rate,
+          numChannels: 1,
+          autoGain: false,
+          echoCancel: false,
+          noiseSuppress: false,
+        );
+        rawStream = await _recorder.startStream(config);
+        activeSampleRate = rate;
+        debugPrint('[RecordAudioSource] Audio stream started at $rate Hz');
+        break;
+      } catch (e) {
+        debugPrint('[RecordAudioSource] Could not start stream at $rate Hz: $e');
+      }
+    }
+
+    if (rawStream == null) {
+      throw StateError('Failed to initialize audio recorder at any supported sample rate.');
+    }
+
     _isRecording = true;
 
     _streamSubscription = rawStream.listen(
       (bytes) {
         if (_isRecording) {
           _chunkController.add(
-            AudioChunk(bytes: bytes, sampleRate: 16000, channels: 1),
+            AudioChunk(bytes: bytes, sampleRate: activeSampleRate, channels: 1),
           );
         }
       },
-      onError: (err) {
+      onError: (err, stack) {
+        debugPrint('[RecordAudioSource] Stream error: $err');
         _isRecording = false;
         _chunkController.addError(err);
       },
       onDone: () {
+        debugPrint('[RecordAudioSource] Stream closed');
         _isRecording = false;
       },
       cancelOnError: false,

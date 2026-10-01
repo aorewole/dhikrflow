@@ -37,9 +37,9 @@ class VoiceActivityDetector {
   final List<AudioChunk> _currentSegmentChunks = [];
 
   VoiceActivityDetector({
-    this.speechThresholdDbfs = -40.0,
-    this.hangoverDuration = const Duration(milliseconds: 350),
-    this.minSpeechDuration = const Duration(milliseconds: 120),
+    this.speechThresholdDbfs = -48.0,
+    this.hangoverDuration = const Duration(milliseconds: 280),
+    this.minSpeechDuration = const Duration(milliseconds: 80),
     this.maxSpeechDuration = const Duration(seconds: 7),
     this.adaptiveNoiseTracking = true,
   });
