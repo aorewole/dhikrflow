@@ -66,6 +66,37 @@ class DhikrSession {
           runtimeType == other.runtimeType &&
           id == other.id;
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'dhikrId': dhikrId,
+      'startedAt': startedAt.toIso8601String(),
+      'endedAt': endedAt?.toIso8601String(),
+      'count': count,
+      'target': target,
+      'durationMs': duration.inMilliseconds,
+      'status': status.name,
+    };
+  }
+
+  factory DhikrSession.fromJson(Map<String, dynamic> json) {
+    return DhikrSession(
+      id: json['id'] as String,
+      dhikrId: json['dhikrId'] as String,
+      startedAt: DateTime.parse(json['startedAt'] as String),
+      endedAt: json['endedAt'] != null
+          ? DateTime.parse(json['endedAt'] as String)
+          : null,
+      count: json['count'] as int? ?? 0,
+      target: json['target'] as int?,
+      duration: Duration(milliseconds: json['durationMs'] as int? ?? 0),
+      status: SessionStatus.values.firstWhere(
+        (s) => s.name == json['status'],
+        orElse: () => SessionStatus.completed,
+      ),
+    );
+  }
+
   @override
   int get hashCode => id.hashCode;
 }

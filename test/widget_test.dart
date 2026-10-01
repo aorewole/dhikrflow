@@ -7,7 +7,7 @@ void main() {
   testWidgets('App launches to onboarding and navigates to home', (
     WidgetTester tester,
   ) async {
-    final deps = AppDependencies.initialize();
+    final deps = AppDependencies.forTesting();
 
     await tester.pumpWidget(DhikrCounterApp(dependencies: deps));
     await tester.pumpAndSettle();

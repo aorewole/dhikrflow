@@ -6,6 +6,7 @@ import '../../domain/models/dhikr_session.dart';
 import '../dhikr_detail/dhikr_detail_screen.dart';
 import '../dhikr_library/dhikr_library_screen.dart';
 import '../history/history_screen.dart';
+import '../session/active_session_screen.dart';
 import '../settings/settings_screen.dart';
 
 /// The central hub of the application.
@@ -111,6 +112,101 @@ class _HomeDashboardView extends StatelessWidget {
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
+
+            // Interrupted Session Recovery Banner
+            FutureBuilder<DhikrSession?>(
+              future: deps.sessionRepository.getActiveDraftSession(),
+              builder: (context, snapshot) {
+                final draft = snapshot.data;
+                if (draft == null || draft.count == 0) {
+                  return const SizedBox.shrink();
+                }
+                final draftDhikr = deps.dhikrRepository.getById(draft.dhikrId);
+                if (draftDhikr == null) return const SizedBox.shrink();
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.amber.withValues(alpha: 0.6),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.restore_rounded,
+                            color: Colors.amber,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Interrupted Recitation Found',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.amber[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${draftDhikr.transliteration} • ${draft.count} repetitions recorded',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () async {
+                                await deps.sessionController
+                                    .restoreSessionFromDraft(
+                                      draft: draft,
+                                      dhikr: draftDhikr,
+                                    );
+                                if (context.mounted) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const ActiveSessionScreen(),
+                                    ),
+                                  );
+                                }
+                              },
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              child: const Text('Resume'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: () async {
+                              await deps.sessionRepository
+                                  .clearActiveDraftSession();
+                              (context as Element).markNeedsBuild();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: const Text('Discard'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
 
             // Hero Card: Quick Start Primary Dhikr
             _buildHeroQuickStart(context, primaryDhikr),

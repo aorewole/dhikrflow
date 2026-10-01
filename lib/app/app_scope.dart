@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/repositories/dhikr_repository.dart';
 import '../data/repositories/session_repository.dart';
+import '../data/repositories/settings_repository.dart';
 import '../domain/recognition/recognition_engine.dart';
 import '../domain/session/session_controller.dart';
 import '../domain/settings/settings_controller.dart';
@@ -23,15 +25,19 @@ class AppDependencies {
     required this.settingsController,
   });
 
-  factory AppDependencies.initialize() {
-    final dhikrRepo = InMemoryDhikrRepository();
-    final sessionRepo = InMemorySessionRepository();
+  /// Asynchronously initializes all persistent repositories and settings.
+  static Future<AppDependencies> initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsRepo = SharedPrefsSettingsRepository(prefs);
+    final dhikrRepo = LocalDhikrRepository(prefs);
+    final sessionRepo = LocalSessionRepository(prefs);
     final recognitionEngine = MockRecognitionEngine();
     final sessionController = SessionController(
       recognitionEngine: recognitionEngine,
       sessionRepository: sessionRepo,
     );
-    final settingsController = SettingsController();
+    final settingsController = SettingsController(repository: settingsRepo);
+    await settingsController.loadSettings();
 
     return AppDependencies(
       dhikrRepository: dhikrRepo,
@@ -39,6 +45,31 @@ class AppDependencies {
       recognitionEngine: recognitionEngine,
       sessionController: sessionController,
       settingsController: settingsController,
+    );
+  }
+
+  /// Synchronous initialization for unit tests or in-memory testing.
+  factory AppDependencies.forTesting({
+    DhikrRepository? dhikrRepo,
+    SessionRepository? sessionRepo,
+    RecognitionEngine? recognitionEngine,
+    SettingsRepository? settingsRepo,
+  }) {
+    final dRepo = dhikrRepo ?? LocalDhikrRepository();
+    final sRepo = sessionRepo ?? LocalSessionRepository();
+    final engine = recognitionEngine ?? MockRecognitionEngine();
+    final sController = SessionController(
+      recognitionEngine: engine,
+      sessionRepository: sRepo,
+    );
+    final setController = SettingsController(repository: settingsRepo);
+
+    return AppDependencies(
+      dhikrRepository: dRepo,
+      sessionRepository: sRepo,
+      recognitionEngine: engine,
+      sessionController: sController,
+      settingsController: setController,
     );
   }
 

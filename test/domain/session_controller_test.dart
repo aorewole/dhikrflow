@@ -10,7 +10,7 @@ import 'package:dhikr_counter/recognition/mock_recognition_engine.dart';
 void main() {
   group('SessionController Tests', () {
     late MockRecognitionEngine mockEngine;
-    late InMemorySessionRepository sessionRepo;
+    late LocalSessionRepository sessionRepo;
     late SessionController controller;
 
     const testDhikr = DhikrDefinition(
@@ -25,7 +25,7 @@ void main() {
 
     setUp(() {
       mockEngine = MockRecognitionEngine();
-      sessionRepo = InMemorySessionRepository();
+      sessionRepo = LocalSessionRepository();
       controller = SessionController(
         recognitionEngine: mockEngine,
         sessionRepository: sessionRepo,

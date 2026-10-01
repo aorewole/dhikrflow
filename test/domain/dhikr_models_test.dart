@@ -33,8 +33,8 @@ void main() {
       expect(sessionNoTarget.remaining, isNull);
     });
 
-    test('InMemoryDhikrRepository provides validated canonical adhkar', () {
-      final repo = InMemoryDhikrRepository();
+    test('LocalDhikrRepository provides validated canonical adhkar', () {
+      final repo = LocalDhikrRepository();
       final all = repo.getAll();
 
       expect(all.isNotEmpty, isTrue);

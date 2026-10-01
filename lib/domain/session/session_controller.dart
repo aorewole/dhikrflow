@@ -74,6 +74,36 @@ class SessionController extends ChangeNotifier {
     });
 
     await recognitionEngine.start(dhikr);
+    sessionRepository.saveActiveDraftSession(_currentSession);
+    notifyListeners();
+  }
+
+  /// Restore an interrupted session from persistent draft.
+  Future<void> restoreSessionFromDraft({
+    required DhikrSession draft,
+    required DhikrDefinition dhikr,
+  }) async {
+    await endCurrentSessionSilently();
+
+    _activeDhikr = dhikr;
+    _currentSession = draft.copyWith(status: SessionStatus.active);
+    _accumulatedDuration = draft.duration;
+    _lastResumeTime = DateTime.now();
+
+    _startDurationTimer();
+
+    _countSubscription?.cancel();
+    _countSubscription = recognitionEngine.countEvents.listen(
+      _handleCountEvent,
+    );
+
+    _stateSubscription?.cancel();
+    _stateSubscription = recognitionEngine.stateStream.listen((_) {
+      notifyListeners();
+    });
+
+    await recognitionEngine.start(dhikr);
+    sessionRepository.saveActiveDraftSession(_currentSession);
     notifyListeners();
   }
 
@@ -109,6 +139,7 @@ class SessionController extends ChangeNotifier {
       duration: currentDuration,
     );
 
+    sessionRepository.saveActiveDraftSession(_currentSession);
     notifyListeners();
   }
 
@@ -128,6 +159,7 @@ class SessionController extends ChangeNotifier {
       duration: _accumulatedDuration,
     );
 
+    await sessionRepository.saveActiveDraftSession(_currentSession);
     await recognitionEngine.pause();
     notifyListeners();
   }
@@ -144,6 +176,7 @@ class SessionController extends ChangeNotifier {
 
     _currentSession = _currentSession!.copyWith(status: SessionStatus.active);
 
+    await sessionRepository.saveActiveDraftSession(_currentSession);
     await recognitionEngine.resume();
     notifyListeners();
   }
@@ -164,6 +197,7 @@ class SessionController extends ChangeNotifier {
     );
 
     await sessionRepository.saveSession(completedSession);
+    await sessionRepository.clearActiveDraftSession();
 
     final result = completedSession;
     _currentSession = null;
@@ -183,6 +217,7 @@ class SessionController extends ChangeNotifier {
     await recognitionEngine.stop();
     _countSubscription?.cancel();
     _stateSubscription?.cancel();
+    await sessionRepository.clearActiveDraftSession();
 
     _currentSession = null;
     _activeDhikr = null;
