@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/repositories/dhikr_repository.dart';
@@ -7,7 +8,9 @@ import '../data/repositories/settings_repository.dart';
 import '../domain/recognition/recognition_engine.dart';
 import '../domain/session/session_controller.dart';
 import '../domain/settings/settings_controller.dart';
+import '../recognition/asr/sherpa_onnx_asr_engine.dart';
 import '../recognition/audio/record_audio_source.dart';
+import '../recognition/local_recognition_engine.dart';
 import '../recognition/mock_recognition_engine.dart';
 import '../recognition/pipeline/audio_vad_pipeline.dart';
 import '../recognition/vad/voice_activity_detector.dart';
@@ -42,7 +45,26 @@ class AppDependencies {
     final vad = VoiceActivityDetector();
     final pipeline = AudioVadPipeline(audioSource: audioSource, vad: vad);
 
-    final recognitionEngine = MockRecognitionEngine(pipeline: pipeline);
+    // Check for offline Whisper Tiny ONNX model files
+    final docsDir = await getApplicationDocumentsDirectory();
+    final modelDir = '${docsDir.path}/models/whisper_tiny';
+    final asrEngine = SherpaOnnxAsrEngine(
+      encoderPath: '$modelDir/tiny-encoder.int8.onnx',
+      decoderPath: '$modelDir/tiny-decoder.int8.onnx',
+      tokensPath: '$modelDir/tiny-tokens.txt',
+    );
+
+    final RecognitionEngine recognitionEngine;
+    if (asrEngine.areModelFilesPresent) {
+      recognitionEngine = LocalRecognitionEngine(
+        pipeline: pipeline,
+        asrEngine: asrEngine,
+      );
+    } else {
+      // Fallback to MockRecognitionEngine (connected to AudioVadPipeline)
+      recognitionEngine = MockRecognitionEngine(pipeline: pipeline);
+    }
+
     final sessionController = SessionController(
       recognitionEngine: recognitionEngine,
       sessionRepository: sessionRepo,

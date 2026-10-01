@@ -57,7 +57,22 @@ Stream<DhikrCountEvent>
          ↓
 SessionController (Domain State Machine)
          ↓
-UI & Persistence
-```
-
 The presentation layer and session state machine interact **only** with `RecognitionEngine` and domain events (`DhikrCountEvent`, `ManualCountEvent`), completely shielded from third-party speech libraries.
+
+---
+
+## 4. Phase 4 Model Provenance & Redistribution Certification
+
+- **Target Selected Model:** Whisper Tiny Multilingual (Quantized int8) for Arabic
+- **Engine Runtime:** `sherpa_onnx` Flutter / C++ native runtime (Apache 2.0)
+- **Model Upstream Source:** OpenAI Whisper (`whisper-tiny`, MIT License)
+- **ONNX Export & Optimization:** Next-gen Kaldi / `k2-fsa` (`csukuangfj/sherpa-onnx-whisper-tiny`)
+- **Distribution Archive:** `https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2`
+- **Component Files:**
+  - `tiny-encoder.int8.onnx` (~24.6 MB) — acoustic feature encoder
+  - `tiny-decoder.int8.onnx` (~14.8 MB) — autoregressive text decoder
+  - `tiny-tokens.txt` (~835 KB) — multilingual token vocabulary table
+- **Redistribution Terms:**
+  - MIT License for OpenAI weights allows royalty-free bundling and offline execution.
+  - Apache 2.0 License for `sherpa-onnx` runtime allows royalty-free inclusion.
+  - No remote server, activation, or telemetry required or permitted.

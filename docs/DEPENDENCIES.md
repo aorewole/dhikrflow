@@ -14,6 +14,7 @@ Every dependency in Dhikr Counter is audited according to the policy in `docs/MA
 | **`path_provider`** | `^2.1.6` | BSD-3-Clause | Resolves standard app documents directory for local JSON session storage | **None** | Sandbox-contained file paths |
 | **`record`** | `^7.1.1` | MIT | In-memory raw PCM microphone stream for on-device VAD and recognition | **None** | Microphone capture; zero audio persisted |
 | **`permission_handler`** | `^13.0.2` | MIT | Prompts system microphone permission dialog only on recitation start | **None** | Requests `RECORD_AUDIO` only |
+| **`sherpa_onnx`** | `^1.13.8` | Apache 2.0 | Embedded C++/Dart FFI offline ONNX speech recognition runtime | **None** | Runs completely locally on-device |
 
 ---
 
