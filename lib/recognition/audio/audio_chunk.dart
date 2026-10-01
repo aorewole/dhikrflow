@@ -11,6 +11,7 @@ class AudioChunk {
   final int sampleRate;
   final int channels;
   final DateTime timestamp;
+  Int16List? _cachedPcm16;
 
   AudioChunk({
     required this.bytes,
@@ -19,21 +20,28 @@ class AudioChunk {
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
+  /// Total number of 16-bit PCM samples per channel in this chunk.
+  int get sampleCount => bytes.lengthInBytes ~/ (channels * 2);
+
   /// The duration of audio contained within this chunk.
   Duration get duration {
-    final sampleCount = bytes.lengthInBytes ~/ (channels * 2);
     final ms = (sampleCount * 1000) ~/ sampleRate;
     return Duration(milliseconds: ms);
   }
 
   /// Converts the raw byte buffer to 16-bit signed PCM samples.
+  ///
+  /// Caches the decoded samples in-memory to prevent duplicate allocations
+  /// during VAD energy calculation and downstream ASR transcription.
   Int16List get pcm16Samples {
+    if (_cachedPcm16 != null) return _cachedPcm16!;
     final byteData = ByteData.sublistView(bytes);
     final count = bytes.lengthInBytes ~/ 2;
     final samples = Int16List(count);
     for (int i = 0; i < count; i++) {
       samples[i] = byteData.getInt16(i * 2, Endian.little);
     }
+    _cachedPcm16 = samples;
     return samples;
   }
 

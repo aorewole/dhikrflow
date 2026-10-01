@@ -19,6 +19,9 @@ class VoiceActivityDetector {
   /// Minimum speech length to reject short transient noise (clicks, taps).
   final Duration minSpeechDuration;
 
+  /// Maximum speech length before concluding a segment to prevent unbounded memory growth.
+  final Duration maxSpeechDuration;
+
   /// Whether to adapt the threshold dynamically relative to background ambient noise.
   final bool adaptiveNoiseTracking;
 
@@ -37,6 +40,7 @@ class VoiceActivityDetector {
     this.speechThresholdDbfs = -40.0,
     this.hangoverDuration = const Duration(milliseconds: 350),
     this.minSpeechDuration = const Duration(milliseconds: 120),
+    this.maxSpeechDuration = const Duration(seconds: 7),
     this.adaptiveNoiseTracking = true,
   });
 
@@ -67,6 +71,12 @@ class VoiceActivityDetector {
         _currentSegmentChunks.clear();
       }
       _currentSegmentChunks.add(chunk);
+
+      // Phase 11 Optimization: Limit segment duration to avoid unbounded memory accumulation
+      if (_speechStartTime != null &&
+          now.difference(_speechStartTime!) >= maxSpeechDuration) {
+        _concludeSpeechSegment(now);
+      }
     } else {
       // Energy below threshold: check hangover period
       if (_isSpeaking && _lastSpeechTime != null) {

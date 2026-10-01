@@ -105,7 +105,7 @@ class SherpaOnnxAsrEngine implements AsrEngine {
     // Convert in-memory AudioChunks to continuous normalized float32 samples
     final totalSamplesCount = segment.chunks.fold<int>(
       0,
-      (sum, chunk) => sum + chunk.pcm16Samples.length,
+      (sum, chunk) => sum + chunk.sampleCount,
     );
 
     if (totalSamplesCount == 0) return '';

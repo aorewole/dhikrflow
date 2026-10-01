@@ -169,5 +169,50 @@ void main() {
       expect(engine.currentTarget, isNull);
       expect(pipeline.isRunning, isFalse);
     });
+
+    test('Phase 11: two consecutive discrete speech segments emit +1 each', () async {
+      await engine.start(targetDhikr);
+
+      final countEvents = <DhikrCountEvent>[];
+      final sub = engine.countEvents.listen(countEvents.add);
+
+      final baseTime = DateTime(2026, 1, 1, 12, 0, 0);
+
+      // --- Segment 1: Tone + Silence (>350ms hangover) ---
+      audioSource.emitTone(
+        amplitude: 0.8,
+        durationMs: 250,
+        timestamp: baseTime,
+      );
+      await pumpEventQueue();
+
+      audioSource.emitSilence(
+        durationMs: 400,
+        timestamp: baseTime.add(const Duration(milliseconds: 500)),
+      );
+      await pumpEventQueue();
+
+      expect(countEvents.length, 1);
+      expect(countEvents[0].increment, 1);
+
+      // --- Segment 2: Tone + Silence (second utterance) ---
+      audioSource.emitTone(
+        amplitude: 0.8,
+        durationMs: 250,
+        timestamp: baseTime.add(const Duration(milliseconds: 1000)),
+      );
+      await pumpEventQueue();
+
+      audioSource.emitSilence(
+        durationMs: 400,
+        timestamp: baseTime.add(const Duration(milliseconds: 1500)),
+      );
+      await pumpEventQueue();
+
+      expect(countEvents.length, 2);
+      expect(countEvents[1].increment, 1);
+
+      await sub.cancel();
+    });
   });
 }

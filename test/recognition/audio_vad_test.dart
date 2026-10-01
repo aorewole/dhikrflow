@@ -52,6 +52,18 @@ void main() {
         ); // 400Hz at 16kHz has ~800 crossings/s = 0.05
       },
     );
+
+    test('Phase 11: caches pcm16Samples to eliminate redundant memory allocations', () {
+      final silenceBytes = Uint8List(3200);
+      final chunk = AudioChunk(bytes: silenceBytes, sampleRate: 16000);
+
+      expect(chunk.sampleCount, 1600);
+      final samples1 = chunk.pcm16Samples;
+      final samples2 = chunk.pcm16Samples;
+
+      // Must be the identical cached instance
+      expect(identical(samples1, samples2), isTrue);
+    });
   });
 
   group('VoiceActivityDetector', () {
@@ -188,6 +200,32 @@ void main() {
         reason:
             'Short transient should be filtered out without emitting segment',
       );
+
+      await segSub.cancel();
+    });
+
+    test('Phase 11: bounds continuous uninterrupted speech at maxSpeechDuration', () async {
+      final segments = <SpeechSegment>[];
+      final segSub = vad.completedSegments.listen(segments.add);
+
+      final loudBytes = Uint8List(1600);
+      final byteData = ByteData.sublistView(loudBytes);
+      for (int i = 0; i < 800; i++) {
+        byteData.setInt16(i * 2, 25000, Endian.little);
+      }
+
+      var time = DateTime(2026, 1, 1, 12, 0, 0);
+
+      // Feed continuous speech for 8 seconds (exceeding default 7s maxSpeechDuration)
+      for (int step = 0; step < 16; step++) {
+        vad.processChunk(AudioChunk(bytes: loudBytes, timestamp: time));
+        time = time.add(const Duration(milliseconds: 500));
+      }
+      await pumpEventQueue();
+
+      // At step 14 (7.0 seconds), maxSpeechDuration is reached, so a segment is concluded
+      expect(segments.isNotEmpty, isTrue);
+      expect(segments.first.duration.inMilliseconds, greaterThanOrEqualTo(6500));
 
       await segSub.cancel();
     });

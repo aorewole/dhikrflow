@@ -177,6 +177,9 @@ class LocalRecognitionEngine implements RecognitionEngine {
         );
       }
 
+      // Reset repetition detector state for the next discrete utterance segment
+      _repetitionDetector?.reset();
+
       // 4. Emit diagnostic update
       _diagnosticController.add(
         RecognitionDiagnostic(
