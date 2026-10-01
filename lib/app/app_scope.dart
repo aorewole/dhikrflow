@@ -57,21 +57,30 @@ class AppDependencies {
     }
 
     final docsDir = await getApplicationDocumentsDirectory();
+    final moonshineDir = '${docsDir.path}/models/moonshine_arabic';
     final baseDir = '${docsDir.path}/models/whisper_base';
     final tinyDir = '${docsDir.path}/models/whisper_tiny';
 
     final SherpaOnnxAsrEngine asrEngine;
-    final baseEngine = SherpaOnnxAsrEngine(
+    final moonshineEngine = SherpaOnnxAsrEngine.moonshine(
+      encoderPath: '$moonshineDir/encoder_model.ort',
+      decoderPath: '$moonshineDir/decoder_model_merged.ort',
+      tokensPath: '$moonshineDir/tokens.txt',
+    );
+    final baseEngine = SherpaOnnxAsrEngine.whisper(
       encoderPath: '$baseDir/base-encoder.int8.onnx',
       decoderPath: '$baseDir/base-decoder.int8.onnx',
       tokensPath: '$baseDir/base-tokens.txt',
     );
 
-    if (baseEngine.areModelFilesPresent) {
+    if (moonshineEngine.areModelFilesPresent) {
+      asrEngine = moonshineEngine;
+      debugPrint('[AppDependencies] Using dedicated offline Moonshine Arabic model.');
+    } else if (baseEngine.areModelFilesPresent) {
       asrEngine = baseEngine;
       debugPrint('[AppDependencies] Using high-accuracy Whisper Base Arabic model.');
     } else {
-      asrEngine = SherpaOnnxAsrEngine(
+      asrEngine = SherpaOnnxAsrEngine.whisper(
         encoderPath: '$tinyDir/tiny-encoder.int8.onnx',
         decoderPath: '$tinyDir/tiny-decoder.int8.onnx',
         tokensPath: '$tinyDir/tiny-tokens.txt',

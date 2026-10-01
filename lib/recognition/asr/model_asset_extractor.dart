@@ -3,9 +3,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Helper to ensure offline Whisper ONNX models bundled in Flutter assets
+/// Helper to ensure offline ONNX models bundled in Flutter assets
 /// are extracted into the application's local documents directory for native C++ loading.
 class ModelAssetExtractor {
+  static const List<String> moonshineArabicFiles = [
+    'encoder_model.ort',
+    'decoder_model_merged.ort',
+    'tokens.txt',
+  ];
+
   static const List<String> whisperBaseFiles = [
     'base-encoder.int8.onnx',
     'base-decoder.int8.onnx',
@@ -17,6 +23,16 @@ class ModelAssetExtractor {
     'tiny-decoder.int8.onnx',
     'tiny-tokens.txt',
   ];
+
+  /// Returns the target directory for the Moonshine Arabic ONNX model.
+  static Future<Directory> getMoonshineModelDirectory() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final modelDir = Directory('${docsDir.path}/models/moonshine_arabic');
+    if (!modelDir.existsSync()) {
+      await modelDir.create(recursive: true);
+    }
+    return modelDir;
+  }
 
   /// Returns the target directory for the Whisper Base ONNX model.
   static Future<Directory> getBaseModelDirectory() async {
@@ -39,9 +55,41 @@ class ModelAssetExtractor {
   }
 
   /// Extracts the model files from assets if they are missing or incomplete.
-  /// Prioritizes Whisper Base (higher Arabic accuracy) and falls back to Whisper Tiny.
+  /// Prioritizes purpose-built Moonshine Arabic, then Whisper Base, then Whisper Tiny.
   static Future<bool> ensureModelsExtracted() async {
-    // 1. Try extracting Whisper Base
+    // 1. Try extracting purpose-built Moonshine Arabic model
+    final moonshineDir = await getMoonshineModelDirectory();
+    bool moonshineSuccess = true;
+    for (final filename in moonshineArabicFiles) {
+      final destFile = File('${moonshineDir.path}/$filename');
+      if (destFile.existsSync() && destFile.lengthSync() > 0) continue;
+
+      try {
+        final assetPath = 'assets/models/moonshine_arabic/$filename';
+        final byteData = await rootBundle.load(assetPath);
+        final bytes = byteData.buffer.asUint8List(
+          byteData.offsetInBytes,
+          byteData.lengthInBytes,
+        );
+        await destFile.writeAsBytes(bytes, flush: true);
+        debugPrint('[ModelAssetExtractor] Extracted Moonshine Arabic: $filename (${bytes.length} bytes)');
+      } catch (_) {
+        final localFile = File('assets/models/moonshine_arabic/$filename');
+        if (localFile.existsSync() && localFile.lengthSync() > 0) {
+          await localFile.copy(destFile.path);
+          debugPrint('[ModelAssetExtractor] Copied $filename from local filesystem fallback.');
+        } else {
+          moonshineSuccess = false;
+        }
+      }
+    }
+
+    if (moonshineSuccess) {
+      debugPrint('[ModelAssetExtractor] Dedicated Moonshine Arabic model ready on device.');
+      return true;
+    }
+
+    // 2. Fallback to Whisper Base
     final baseDir = await getBaseModelDirectory();
     bool baseSuccess = true;
     for (final filename in whisperBaseFiles) {
@@ -73,7 +121,7 @@ class ModelAssetExtractor {
       return true;
     }
 
-    // 2. Fallback to Whisper Tiny
+    // 3. Fallback to Whisper Tiny
     final tinyDir = await getTinyModelDirectory();
     bool tinySuccess = true;
     for (final filename in whisperTinyFiles) {

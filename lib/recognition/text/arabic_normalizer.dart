@@ -22,8 +22,59 @@ class ArabicNormalizer {
     r'[\u060C\u061B\u061F\u066A\u066B\u066C\u066D\u06D4.!?,:;"\x27`~()\[\]{}<>/\\|@#$%^&*+=_\-]',
   );
 
+  // Regex for non-Arabic characters (Latin alphabet, ASCII digits, symbols)
+  static final RegExp _nonArabicRegex = RegExp(r'[a-zA-Z0-9]');
+
   // Regex for multiple whitespace characters
   static final RegExp _whitespaceRegex = RegExp(r'\s+');
+
+  // Regex matching repetitive single-letter loops produced by autoregressive decoders on silence (e.g. "س س س س" or "و و و و")
+  static final RegExp _repetitionLoopRegex = RegExp(r'(?:^|\s)([\u0600-\u06FF])(?:\s+\1){2,}(?:\s|$)');
+
+  /// Cleans and strictly enforces Arabic output.
+  ///
+  /// 1. Strips all English/Latin letters and ASCII digits.
+  /// 2. Removes decoder repetition loops on silence (e.g. "و و و و" or "س س س").
+  /// 3. Normalizes whitespace and returns only clean Arabic text.
+  /// If no Arabic characters remain, returns an empty string.
+  static String cleanStrictArabic(String text) {
+    if (text.isEmpty) return '';
+
+    // Remove English/Latin characters and digits
+    String cleaned = text.replaceAll(_nonArabicRegex, ' ');
+
+    // Remove repetitive single-character hallucination loops
+    cleaned = cleanHallucinations(cleaned);
+
+    // Strip punctuation
+    cleaned = cleaned.replaceAll(_punctuationRegex, ' ');
+
+    // Normalize whitespace
+    cleaned = cleaned.replaceAll(_whitespaceRegex, ' ').trim();
+
+    // If there are no Arabic letters at all, discard
+    if (!containsArabicLetters(cleaned)) {
+      return '';
+    }
+
+    return cleaned;
+  }
+
+  /// Removes repetitive single-character loops generated during low volume or silence.
+  static String cleanHallucinations(String text) {
+    String prev = text;
+    String curr = text.replaceAll(_repetitionLoopRegex, ' ');
+    while (curr != prev) {
+      prev = curr;
+      curr = curr.replaceAll(_repetitionLoopRegex, ' ');
+    }
+    return curr;
+  }
+
+  /// Checks whether [text] contains at least one Arabic letter.
+  static bool containsArabicLetters(String text) {
+    return RegExp(r'[\u0621-\u064A]').hasMatch(text);
+  }
 
   /// Normalizes an Arabic string into a standardized comparison form.
   ///
@@ -32,7 +83,8 @@ class ArabicNormalizer {
   static String normalize(String text) {
     if (text.isEmpty) return '';
 
-    String result = text;
+    // First ensure strict Arabic filtering
+    String result = text.replaceAll(_nonArabicRegex, ' ');
 
     // 1. Remove diacritics (tashkeel)
     result = result.replaceAll(_tashkeelRegex, '');

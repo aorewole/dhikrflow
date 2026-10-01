@@ -6,6 +6,7 @@ import '../../domain/models/dhikr_definition.dart';
 import '../../recognition/asr/sherpa_onnx_asr_engine.dart';
 import '../../recognition/calibration/personal_calibration_engine.dart';
 import '../../recognition/local_recognition_engine.dart';
+import '../../recognition/text/arabic_normalizer.dart';
 import '../../recognition/vad/vad_event.dart';
 
 /// Modal dialog allowing users to train the app on their personal pronunciation of a dhikr.
@@ -33,6 +34,7 @@ class VoiceCalibrationDialog extends StatefulWidget {
 }
 
 class _VoiceCalibrationDialogState extends State<VoiceCalibrationDialog> {
+  late AppDependencies _deps;
   final List<SpeechSegment> _capturedSegments = [];
   final List<String> _capturedTranscripts = [];
 
@@ -44,15 +46,24 @@ class _VoiceCalibrationDialogState extends State<VoiceCalibrationDialog> {
   StreamSubscription<VadStateEvent>? _vadSub;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _deps = AppScope.of(context);
+  }
+
+  @override
   void dispose() {
-    _stopListening();
+    _segmentSub?.cancel();
+    _vadSub?.cancel();
+    _segmentSub = null;
+    _vadSub = null;
+    _deps.audioVadPipeline?.stop();
     super.dispose();
   }
 
   Future<void> _startListening() async {
-    final deps = AppScope.of(context);
-    final pipeline = deps.audioVadPipeline;
-    final asr = deps.recognitionEngine;
+    final pipeline = _deps.audioVadPipeline;
+    final asr = _deps.recognitionEngine;
 
     if (pipeline == null) {
       setState(() {
@@ -63,7 +74,7 @@ class _VoiceCalibrationDialogState extends State<VoiceCalibrationDialog> {
 
     setState(() {
       _isListening = true;
-      _statusMessage = 'Listening... Please recite "${widget.dhikr.transliteration}" clearly.';
+      _statusMessage = 'Listening... Please recite "${widget.dhikr.arabic}" (${widget.dhikr.transliteration}) clearly.';
     });
 
     _vadSub = pipeline.vadStateEvents.listen((event) {
@@ -84,30 +95,36 @@ class _VoiceCalibrationDialogState extends State<VoiceCalibrationDialog> {
 
       String transcript = '';
       try {
-        final asrEngine = deps.audioVadPipeline != null
+        final asrEngine = _deps.audioVadPipeline != null
             ? (asr is LocalRecognitionEngine ? asr.asrEngine : null)
             : null;
 
         if (asrEngine is SherpaOnnxAsrEngine && asrEngine.isInitialized) {
           transcript = await asrEngine.transcribeSegment(segment);
         } else {
-          transcript = widget.dhikr.transliteration;
+          transcript = widget.dhikr.arabic;
         }
       } catch (e) {
-        transcript = widget.dhikr.transliteration;
+        transcript = widget.dhikr.arabic;
       }
+
+      final cleanTranscript = ArabicNormalizer.cleanStrictArabic(transcript);
 
       if (mounted) {
         setState(() {
           _isProcessing = false;
-          _capturedSegments.add(segment);
-          _capturedTranscripts.add(transcript.trim().isNotEmpty ? transcript.trim() : widget.dhikr.transliteration);
+          if (cleanTranscript.isNotEmpty) {
+            _capturedSegments.add(segment);
+            _capturedTranscripts.add(cleanTranscript);
 
-          if (_capturedSegments.length < 3) {
-            _statusMessage = 'Sample #${_capturedSegments.length} captured! Please recite once more.';
+            if (_capturedSegments.length < 3) {
+              _statusMessage = 'Sample #${_capturedSegments.length} captured! Please recite once more.';
+            } else {
+              _statusMessage = 'All 3 samples captured! You can now save your voice profile.';
+              _stopListening();
+            }
           } else {
-            _statusMessage = 'All 3 samples captured! You can now save your voice profile.';
-            _stopListening();
+            _statusMessage = 'Could not clearly detect Arabic recitation. Please recite clearly in Arabic.';
           }
         });
       }
@@ -117,12 +134,11 @@ class _VoiceCalibrationDialogState extends State<VoiceCalibrationDialog> {
   }
 
   Future<void> _stopListening() async {
-    final deps = AppScope.of(context);
     await _segmentSub?.cancel();
     await _vadSub?.cancel();
     _segmentSub = null;
     _vadSub = null;
-    await deps.audioVadPipeline?.stop();
+    await _deps.audioVadPipeline?.stop();
     if (mounted) {
       setState(() {
         _isListening = false;
@@ -133,7 +149,6 @@ class _VoiceCalibrationDialogState extends State<VoiceCalibrationDialog> {
   Future<void> _saveCalibration() async {
     if (_capturedSegments.isEmpty) return;
 
-    final deps = AppScope.of(context);
     final engine = const PersonalCalibrationEngine();
 
     final profile = engine.calibrate(
@@ -143,11 +158,11 @@ class _VoiceCalibrationDialogState extends State<VoiceCalibrationDialog> {
     );
 
     // Save profile locally in SharedPreferences
-    await deps.settingsController.repository?.setVoiceProfile(profile);
+    await _deps.settingsController.repository?.setVoiceProfile(profile);
 
     // Update active recognition engine if running
-    if (deps.recognitionEngine is LocalRecognitionEngine) {
-      (deps.recognitionEngine as LocalRecognitionEngine)
+    if (_deps.recognitionEngine is LocalRecognitionEngine) {
+      (_deps.recognitionEngine as LocalRecognitionEngine)
           .setCalibratedAliases(profile.calibratedAliases);
     }
 
