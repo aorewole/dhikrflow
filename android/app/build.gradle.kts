@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.dhikrcounter.dhikr_counter"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
