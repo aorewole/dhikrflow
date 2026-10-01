@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../core/constants.dart';
+import '../../domain/recognition/recognition_config.dart';
 
 /// Settings screen for configuring haptics, theme, and reviewing privacy guarantees.
 class SettingsScreen extends StatelessWidget {
@@ -148,6 +149,113 @@ class SettingsScreen extends StatelessWidget {
                         onSelectionChanged: (selected) {
                           settings.setThemeMode(selected.first);
                         },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Text(
+                'Recognition Sensitivity & Calibration',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Calibration Preset',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Adjusts confidence thresholds and speech sensitivity to match your environment.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                            value: 'sensitive',
+                            label: Text('Sensitive'),
+                          ),
+                          ButtonSegment(
+                            value: 'balanced',
+                            label: Text('Balanced'),
+                          ),
+                          ButtonSegment(value: 'strict', label: Text('Strict')),
+                        ],
+                        selected: {
+                          if (settings.recognitionConfig.acceptThreshold <=
+                              0.80)
+                            'sensitive'
+                          else if (settings.recognitionConfig.acceptThreshold >=
+                              0.90)
+                            'strict'
+                          else
+                            'balanced',
+                        },
+                        onSelectionChanged: (selected) {
+                          final choice = selected.first;
+                          if (choice == 'sensitive') {
+                            settings.setRecognitionConfig(
+                              RecognitionConfig.sensitive,
+                            );
+                          } else if (choice == 'strict') {
+                            settings.setRecognitionConfig(
+                              RecognitionConfig.strict,
+                            );
+                          } else {
+                            settings.setRecognitionConfig(
+                              RecognitionConfig.balanced,
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.4,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Accept Confidence: ${(settings.recognitionConfig.acceptThreshold * 100).toInt()}%',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              'VAD Floor: ${settings.recognitionConfig.speechThresholdDbfs.toInt()} dBFS',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

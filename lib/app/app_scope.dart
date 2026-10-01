@@ -54,12 +54,20 @@ class AppDependencies {
       tokensPath: '$modelDir/tiny-tokens.txt',
     );
 
+    final settingsController = SettingsController(repository: settingsRepo);
+    await settingsController.loadSettings();
+
     final RecognitionEngine recognitionEngine;
     if (asrEngine.areModelFilesPresent) {
-      recognitionEngine = LocalRecognitionEngine(
+      final localEngine = LocalRecognitionEngine(
         pipeline: pipeline,
         asrEngine: asrEngine,
+        config: settingsController.recognitionConfig,
       );
+      settingsController.addListener(() {
+        localEngine.updateConfig(settingsController.recognitionConfig);
+      });
+      recognitionEngine = localEngine;
     } else {
       // Fallback to MockRecognitionEngine (connected to AudioVadPipeline)
       recognitionEngine = MockRecognitionEngine(pipeline: pipeline);
@@ -69,8 +77,6 @@ class AppDependencies {
       recognitionEngine: recognitionEngine,
       sessionRepository: sessionRepo,
     );
-    final settingsController = SettingsController(repository: settingsRepo);
-    await settingsController.loadSettings();
 
     return AppDependencies(
       dhikrRepository: dhikrRepo,

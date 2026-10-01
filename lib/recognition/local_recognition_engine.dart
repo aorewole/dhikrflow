@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../domain/events/count_events.dart';
 import '../domain/models/dhikr_definition.dart';
+import '../domain/recognition/recognition_config.dart';
 import '../domain/recognition/recognition_engine.dart';
 import 'asr/asr_engine.dart';
 import 'pipeline/audio_vad_pipeline.dart';
@@ -58,11 +59,34 @@ class LocalRecognitionEngine implements RecognitionEngine {
   DhikrDefinition? _currentTarget;
   StreamingRepetitionDetector? _repetitionDetector;
 
+  RecognitionConfig config;
+
   LocalRecognitionEngine({
     required this.pipeline,
     required this.asrEngine,
+    this.config = RecognitionConfig.balanced,
     PhraseMatcher? matcher,
-  }) : matcher = matcher ?? const PhraseMatcher();
+  }) : matcher =
+           matcher ??
+           PhraseMatcher(
+             acceptThreshold: config.acceptThreshold,
+             uncertainThreshold: config.uncertainThreshold,
+           );
+
+  /// Dynamically updates the active recognition and VAD configuration.
+  void updateConfig(RecognitionConfig newConfig) {
+    config = newConfig;
+    pipeline.vad.speechThresholdDbfs = newConfig.speechThresholdDbfs;
+    if (_currentTarget != null) {
+      _repetitionDetector = StreamingRepetitionDetector(
+        targetPhrase: _currentTarget!.arabic,
+        matcher: PhraseMatcher(
+          acceptThreshold: newConfig.acceptThreshold,
+          uncertainThreshold: newConfig.uncertainThreshold,
+        ),
+      );
+    }
+  }
 
   @override
   Stream<DhikrCountEvent> get countEvents => _countEventsController.stream;
