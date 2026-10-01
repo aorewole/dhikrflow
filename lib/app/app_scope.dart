@@ -76,6 +76,7 @@ class AppDependencies {
     final sessionController = SessionController(
       recognitionEngine: recognitionEngine,
       sessionRepository: sessionRepo,
+      settingsController: settingsController,
     );
 
     return AppDependencies(

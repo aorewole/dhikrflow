@@ -8,6 +8,8 @@ import 'package:dhikr_counter/domain/session/session_controller.dart';
 import 'package:dhikr_counter/recognition/mock_recognition_engine.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('SessionController Tests', () {
     late MockRecognitionEngine mockEngine;
     late LocalSessionRepository sessionRepo;
@@ -179,6 +181,39 @@ void main() {
 
       final allSaved = await sessionRepo.getAllSessions();
       expect(allSaved.any((s) => s.id == initialSessionId), isFalse);
+    });
+
+    test('Phase 8: target progress and remaining calculations are exact', () async {
+      await controller.startSession(dhikr: testDhikr, target: 10);
+      expect(controller.currentSession?.target, 10);
+      expect(controller.currentSession?.count, 0);
+      expect(controller.currentSession?.progress, 0.0);
+      expect(controller.currentSession?.remaining, 10);
+      expect(controller.currentSession?.isTargetReached, isFalse);
+
+      for (int i = 1; i <= 5; i++) {
+        controller.incrementManual();
+      }
+      expect(controller.currentSession?.count, 5);
+      expect(controller.currentSession?.progress, 0.5);
+      expect(controller.currentSession?.remaining, 5);
+      expect(controller.currentSession?.isTargetReached, isFalse);
+
+      for (int i = 6; i <= 10; i++) {
+        controller.incrementManual();
+      }
+      expect(controller.currentSession?.count, 10);
+      expect(controller.currentSession?.progress, 1.0);
+      expect(controller.currentSession?.remaining, 0);
+      expect(controller.currentSession?.isTargetReached, isTrue);
+
+      // Reciting past target preserves progress clamped at 1.0 and remaining 0
+      controller.incrementManual();
+      expect(controller.currentSession?.count, 11);
+      expect(controller.currentSession?.progress, 1.0);
+      expect(controller.currentSession?.remaining, 0);
+      expect(controller.currentSession?.isTargetReached, isTrue);
+      expect(controller.currentSession?.status, SessionStatus.active);
     });
   });
 }

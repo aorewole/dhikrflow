@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
+import '../../data/repositories/session_repository.dart';
 import '../events/count_events.dart';
 import '../models/dhikr_definition.dart';
 import '../models/dhikr_session.dart';
 import '../recognition/recognition_engine.dart';
-import '../../data/repositories/session_repository.dart';
+import '../settings/settings_controller.dart';
 
 /// Central state machine controlling active dhikr sessions.
 ///
@@ -17,6 +19,7 @@ import '../../data/repositories/session_repository.dart';
 class SessionController extends ChangeNotifier {
   final RecognitionEngine recognitionEngine;
   final SessionRepository sessionRepository;
+  final SettingsController? settingsController;
 
   DhikrSession? _currentSession;
   DhikrDefinition? _activeDhikr;
@@ -29,6 +32,7 @@ class SessionController extends ChangeNotifier {
   SessionController({
     required this.recognitionEngine,
     required this.sessionRepository,
+    this.settingsController,
   });
 
   DhikrSession? get currentSession => _currentSession;
@@ -133,14 +137,37 @@ class SessionController extends ChangeNotifier {
       return;
     }
 
-    final newCount = _currentSession!.count + event.increment;
+    final previousCount = _currentSession!.count;
+    final newCount = previousCount + event.increment;
+    final reachedTargetJustNow =
+        _currentSession!.target != null &&
+        previousCount < _currentSession!.target! &&
+        newCount >= _currentSession!.target!;
+
     _currentSession = _currentSession!.copyWith(
       count: newCount,
       duration: currentDuration,
     );
 
+    // Haptic feedback (if enabled by user settings)
+    if (settingsController?.hapticsEnabled ?? true) {
+      unawaited(_triggerHaptic(isTargetReached: reachedTargetJustNow));
+    }
+
     sessionRepository.saveActiveDraftSession(_currentSession);
     notifyListeners();
+  }
+
+  Future<void> _triggerHaptic({required bool isTargetReached}) async {
+    try {
+      if (isTargetReached) {
+        await HapticFeedback.mediumImpact();
+      } else {
+        await HapticFeedback.lightImpact();
+      }
+    } catch (_) {
+      // Silently ignore in headless test environments where ServicesBinding is not bound
+    }
   }
 
   /// Pause current session and speech recognition.
