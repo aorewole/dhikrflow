@@ -12,6 +12,8 @@ Every dependency in Dhikr Counter is audited according to the policy in `docs/MA
 | **`cupertino_icons`** | `^1.0.8` | MIT | Standard iOS-style glyph icons | None | None |
 | **`shared_preferences`** | `^2.5.5` | BSD-3-Clause | Local key-value store for user settings, theme, and favorite adhkar | **None** | Purely local OS preferences (NSUserDefaults / SharedPreferences) |
 | **`path_provider`** | `^2.1.6` | BSD-3-Clause | Resolves standard app documents directory for local JSON session storage | **None** | Sandbox-contained file paths |
+| **`record`** | `^7.1.1` | MIT | In-memory raw PCM microphone stream for on-device VAD and recognition | **None** | Microphone capture; zero audio persisted |
+| **`permission_handler`** | `^13.0.2` | MIT | Prompts system microphone permission dialog only on recitation start | **None** | Requests `RECORD_AUDIO` only |
 
 ---
 

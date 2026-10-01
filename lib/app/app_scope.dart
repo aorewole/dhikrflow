@@ -7,7 +7,10 @@ import '../data/repositories/settings_repository.dart';
 import '../domain/recognition/recognition_engine.dart';
 import '../domain/session/session_controller.dart';
 import '../domain/settings/settings_controller.dart';
+import '../recognition/audio/record_audio_source.dart';
 import '../recognition/mock_recognition_engine.dart';
+import '../recognition/pipeline/audio_vad_pipeline.dart';
+import '../recognition/vad/voice_activity_detector.dart';
 
 /// Container for app-wide singletons and state controllers.
 class AppDependencies {
@@ -16,6 +19,7 @@ class AppDependencies {
   final RecognitionEngine recognitionEngine;
   final SessionController sessionController;
   final SettingsController settingsController;
+  final AudioVadPipeline? audioVadPipeline;
 
   AppDependencies({
     required this.dhikrRepository,
@@ -23,15 +27,22 @@ class AppDependencies {
     required this.recognitionEngine,
     required this.sessionController,
     required this.settingsController,
+    this.audioVadPipeline,
   });
 
-  /// Asynchronously initializes all persistent repositories and settings.
+  /// Asynchronously initializes all persistent repositories, audio pipeline, and settings.
   static Future<AppDependencies> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     final settingsRepo = SharedPrefsSettingsRepository(prefs);
     final dhikrRepo = LocalDhikrRepository(prefs);
     final sessionRepo = LocalSessionRepository(prefs);
-    final recognitionEngine = MockRecognitionEngine();
+
+    // Audio & VAD pipeline setup
+    final audioSource = RecordAudioSource();
+    final vad = VoiceActivityDetector();
+    final pipeline = AudioVadPipeline(audioSource: audioSource, vad: vad);
+
+    final recognitionEngine = MockRecognitionEngine(pipeline: pipeline);
     final sessionController = SessionController(
       recognitionEngine: recognitionEngine,
       sessionRepository: sessionRepo,
@@ -45,6 +56,7 @@ class AppDependencies {
       recognitionEngine: recognitionEngine,
       sessionController: sessionController,
       settingsController: settingsController,
+      audioVadPipeline: pipeline,
     );
   }
 
@@ -54,6 +66,7 @@ class AppDependencies {
     SessionRepository? sessionRepo,
     RecognitionEngine? recognitionEngine,
     SettingsRepository? settingsRepo,
+    AudioVadPipeline? audioVadPipeline,
   }) {
     final dRepo = dhikrRepo ?? LocalDhikrRepository();
     final sRepo = sessionRepo ?? LocalSessionRepository();
@@ -70,10 +83,12 @@ class AppDependencies {
       recognitionEngine: engine,
       sessionController: sController,
       settingsController: setController,
+      audioVadPipeline: audioVadPipeline,
     );
   }
 
   void dispose() {
+    audioVadPipeline?.dispose();
     sessionController.dispose();
     settingsController.dispose();
   }

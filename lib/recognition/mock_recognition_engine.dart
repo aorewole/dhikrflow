@@ -3,14 +3,19 @@ import 'dart:async';
 import '../domain/events/count_events.dart';
 import '../domain/models/dhikr_definition.dart';
 import '../domain/recognition/recognition_engine.dart';
+import 'pipeline/audio_vad_pipeline.dart';
+import 'vad/vad_event.dart';
 
 /// Mock implementation of [RecognitionEngine] for development and UI prototyping.
 ///
-/// Emits deterministic [DhikrCountEvent]s on demand or optionally on a timer.
-/// Contains no real microphone capture, ensuring complete offline safety.
+/// Can operate purely synthetically or connect to an [AudioVadPipeline] to react
+/// to live local microphone voice activity.
 class MockRecognitionEngine implements RecognitionEngine {
   final _countEventsController = StreamController<DhikrCountEvent>.broadcast();
   final _stateController = StreamController<RecognitionState>.broadcast();
+
+  final AudioVadPipeline? pipeline;
+  StreamSubscription<SpeechSegment>? _segmentSubscription;
 
   RecognitionState _currentState = RecognitionState.idle;
   DhikrDefinition? _currentTarget;
@@ -19,6 +24,7 @@ class MockRecognitionEngine implements RecognitionEngine {
   final Duration simulationInterval;
 
   MockRecognitionEngine({
+    this.pipeline,
     this.autoSimulate = false,
     this.simulationInterval = const Duration(seconds: 4),
   });
@@ -40,6 +46,17 @@ class MockRecognitionEngine implements RecognitionEngine {
     _currentTarget = target;
     _setState(RecognitionState.listening);
 
+    if (pipeline != null) {
+      await pipeline!.start();
+      _segmentSubscription?.cancel();
+      _segmentSubscription = pipeline!.speechSegments.listen((segment) {
+        if (_currentState == RecognitionState.listening) {
+          // In Phase 3, each detected speech segment triggers an accepted count event
+          simulateVoiceCount(confidence: 0.95, repetitions: 1);
+        }
+      });
+    }
+
     if (autoSimulate) {
       _startAutoSimulation();
     }
@@ -48,12 +65,23 @@ class MockRecognitionEngine implements RecognitionEngine {
   @override
   Future<void> pause() async {
     _autoTimer?.cancel();
+    await pipeline?.stop();
+    _segmentSubscription?.cancel();
     _setState(RecognitionState.paused);
   }
 
   @override
   Future<void> resume() async {
     _setState(RecognitionState.listening);
+    if (pipeline != null) {
+      await pipeline!.start();
+      _segmentSubscription?.cancel();
+      _segmentSubscription = pipeline!.speechSegments.listen((segment) {
+        if (_currentState == RecognitionState.listening) {
+          simulateVoiceCount(confidence: 0.95, repetitions: 1);
+        }
+      });
+    }
     if (autoSimulate) {
       _startAutoSimulation();
     }
@@ -62,14 +90,13 @@ class MockRecognitionEngine implements RecognitionEngine {
   @override
   Future<void> stop() async {
     _autoTimer?.cancel();
+    await pipeline?.stop();
+    _segmentSubscription?.cancel();
     _currentTarget = null;
     _setState(RecognitionState.idle);
   }
 
   /// Programmatically simulate voice detection of the target phrase.
-  ///
-  /// Can be used by UI debug controls or automated tests to verify
-  /// single and rapid continuous repetitions.
   void simulateVoiceCount({double confidence = 0.95, int repetitions = 1}) {
     if (_currentState != RecognitionState.listening || _currentTarget == null) {
       return;
@@ -105,6 +132,8 @@ class MockRecognitionEngine implements RecognitionEngine {
   @override
   void dispose() {
     _autoTimer?.cancel();
+    _segmentSubscription?.cancel();
+    pipeline?.dispose();
     _countEventsController.close();
     _stateController.close();
   }

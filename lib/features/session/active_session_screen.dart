@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../recognition/mock_recognition_engine.dart';
+import '../../recognition/vad/vad_event.dart';
 import 'session_complete_screen.dart';
 
 /// The primary active recitation and repetition counting screen.
@@ -450,6 +451,58 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
               ),
             ],
           ),
+          if (mockEngine.pipeline != null) ...[
+            const Divider(height: 14),
+            StreamBuilder<VadStateEvent>(
+              stream: mockEngine.pipeline!.vadStateEvents,
+              builder: (context, snapshot) {
+                final vadEvent = snapshot.data;
+                final isSpeech = vadEvent?.isSpeech ?? false;
+                final dbfs = vadEvent?.energyDbfs ?? -100.0;
+                final normalizedEnergy = ((dbfs + 80.0) / 80.0).clamp(0.0, 1.0);
+
+                return Row(
+                  children: [
+                    Icon(
+                      isSpeech
+                          ? Icons.graphic_eq_rounded
+                          : Icons.mic_none_rounded,
+                      size: 15,
+                      color: isSpeech ? Colors.green : Colors.grey,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isSpeech ? 'VAD: Speech' : 'VAD: Silence',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isSpeech ? Colors.green : Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: normalizedEnergy,
+                          minHeight: 4,
+                          backgroundColor: colorScheme.surfaceContainerHighest,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isSpeech ? Colors.green : colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${dbfs.toStringAsFixed(0)} dBFS',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
         ],
       ),
     );
