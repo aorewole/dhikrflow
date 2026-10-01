@@ -51,11 +51,7 @@ class MockRecognitionEngine implements RecognitionEngine {
       await pipeline!.start();
       _segmentSubscription?.cancel();
       _segmentSubscription = pipeline!.speechSegments.listen((segment) {
-        debugPrint('[MockRecognitionEngine] Speech segment detected: ${segment.duration.inMilliseconds}ms');
-        if (_currentState == RecognitionState.listening) {
-          // In Phase 3, each detected speech segment triggers an accepted count event
-          simulateVoiceCount(confidence: 0.95, repetitions: 1);
-        }
+        debugPrint('[MockRecognitionEngine] Speech segment detected: ${segment.duration.inMilliseconds}ms (not counting without ASR)');
       });
     }
 
@@ -79,9 +75,7 @@ class MockRecognitionEngine implements RecognitionEngine {
       await pipeline!.start();
       _segmentSubscription?.cancel();
       _segmentSubscription = pipeline!.speechSegments.listen((segment) {
-        if (_currentState == RecognitionState.listening) {
-          simulateVoiceCount(confidence: 0.95, repetitions: 1);
-        }
+        debugPrint('[MockRecognitionEngine] Speech segment detected: ${segment.duration.inMilliseconds}ms');
       });
     }
     if (autoSimulate) {

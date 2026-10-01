@@ -122,12 +122,17 @@ class SherpaOnnxAsrEngine implements AsrEngine {
 
     final stream = _recognizer!.createStream();
     try {
-      stream.acceptWaveform(samples: floatSamples, sampleRate: 16000);
+      final inputSampleRate = segment.chunks.isNotEmpty
+          ? segment.chunks.first.sampleRate
+          : 16000;
+      stream.acceptWaveform(samples: floatSamples, sampleRate: inputSampleRate);
       _recognizer!.decode(stream);
       final result = _recognizer!.getResult(stream);
 
       if (kDebugMode) {
-        debugPrint('[SherpaOnnxAsrEngine] Raw transcript: "${result.text}"');
+        debugPrint(
+          '[SherpaOnnxAsrEngine] Decoded (${segment.duration.inMilliseconds}ms @ ${inputSampleRate}Hz): "${result.text}"',
+        );
       }
 
       return result.text;

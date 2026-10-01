@@ -8,6 +8,7 @@ import '../data/repositories/settings_repository.dart';
 import '../domain/recognition/recognition_engine.dart';
 import '../domain/session/session_controller.dart';
 import '../domain/settings/settings_controller.dart';
+import '../recognition/asr/model_asset_extractor.dart';
 import '../recognition/asr/sherpa_onnx_asr_engine.dart';
 import '../recognition/audio/record_audio_source.dart';
 import '../recognition/local_recognition_engine.dart';
@@ -48,7 +49,13 @@ class AppDependencies {
     final vad = VoiceActivityDetector();
     final pipeline = AudioVadPipeline(audioSource: audioSource, vad: vad);
 
-    // Check for offline Whisper Tiny ONNX model files
+    // Ensure offline Whisper Tiny ONNX model files are extracted from assets
+    try {
+      await ModelAssetExtractor.ensureModelsExtracted();
+    } catch (e) {
+      debugPrint('[AppDependencies] Model asset extraction note: $e');
+    }
+
     final docsDir = await getApplicationDocumentsDirectory();
     final modelDir = '${docsDir.path}/models/whisper_tiny';
     final asrEngine = SherpaOnnxAsrEngine(
@@ -62,6 +69,7 @@ class AppDependencies {
 
     final RecognitionEngine recognitionEngine;
     if (asrEngine.areModelFilesPresent) {
+      debugPrint('[AppDependencies] Whisper Tiny ONNX models present. Starting LocalRecognitionEngine with offline ASR.');
       final localEngine = LocalRecognitionEngine(
         pipeline: pipeline,
         asrEngine: asrEngine,
@@ -72,7 +80,7 @@ class AppDependencies {
       });
       recognitionEngine = localEngine;
     } else {
-      // Fallback to MockRecognitionEngine (connected to AudioVadPipeline)
+      debugPrint('[AppDependencies] Model files not found. Using fallback recognition engine.');
       recognitionEngine = MockRecognitionEngine(pipeline: pipeline);
     }
 

@@ -58,7 +58,7 @@ class ArabicNormalizer {
     // 7. Collapse spaces and trim
     result = result.replaceAll(_whitespaceRegex, ' ').trim();
 
-    return result;
+    return result.toLowerCase();
   }
 
   /// Splits normalized Arabic text into individual word tokens.
