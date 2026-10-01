@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/recognition/recognition_config.dart';
+import '../../domain/recognition/recognition_profile.dart';
 
 /// Interface for persisting user settings locally.
 abstract interface class SettingsRepository {
@@ -17,6 +18,11 @@ abstract interface class SettingsRepository {
   Future<void> setRecognitionConfig(RecognitionConfig config);
   Future<bool> getBackgroundListeningOptIn();
   Future<void> setBackgroundListeningOptIn(bool enabled);
+  Future<RecognitionProfile?> getVoiceProfile(String dhikrId);
+  Future<void> setVoiceProfile(RecognitionProfile profile);
+  Future<void> removeVoiceProfile(String dhikrId);
+  Future<bool> getUseVoiceCalibration(String dhikrId);
+  Future<void> setUseVoiceCalibration(String dhikrId, bool enabled);
 }
 
 /// SharedPreferences implementation of [SettingsRepository].
@@ -92,5 +98,40 @@ class SharedPrefsSettingsRepository implements SettingsRepository {
   @override
   Future<void> setBackgroundListeningOptIn(bool enabled) async {
     await _prefs.setBool(_keyBackgroundListening, enabled);
+  }
+
+  @override
+  Future<RecognitionProfile?> getVoiceProfile(String dhikrId) async {
+    final rawJson = _prefs.getString('setting_voice_profile_$dhikrId');
+    if (rawJson == null) return null;
+    try {
+      final map = jsonDecode(rawJson) as Map<String, dynamic>;
+      return RecognitionProfile.fromJson(map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> setVoiceProfile(RecognitionProfile profile) async {
+    final rawJson = jsonEncode(profile.toJson());
+    await _prefs.setString('setting_voice_profile_${profile.dhikrId}', rawJson);
+    await setUseVoiceCalibration(profile.dhikrId, true);
+  }
+
+  @override
+  Future<void> removeVoiceProfile(String dhikrId) async {
+    await _prefs.remove('setting_voice_profile_$dhikrId');
+    await _prefs.remove('setting_use_calibration_$dhikrId');
+  }
+
+  @override
+  Future<bool> getUseVoiceCalibration(String dhikrId) async {
+    return _prefs.getBool('setting_use_calibration_$dhikrId') ?? true;
+  }
+
+  @override
+  Future<void> setUseVoiceCalibration(String dhikrId, bool enabled) async {
+    await _prefs.setBool('setting_use_calibration_$dhikrId', enabled);
   }
 }

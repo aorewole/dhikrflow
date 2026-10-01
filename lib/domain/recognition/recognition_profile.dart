@@ -14,6 +14,7 @@ class RecognitionProfile {
   final int averageRepetitionDurationMs;
   final double calibratedAcceptThreshold;
   final double calibratedSpeechFloorDbfs;
+  final List<String> calibratedAliases;
   final DateTime createdAt;
 
   const RecognitionProfile({
@@ -23,6 +24,7 @@ class RecognitionProfile {
     required this.averageRepetitionDurationMs,
     required this.calibratedAcceptThreshold,
     required this.calibratedSpeechFloorDbfs,
+    this.calibratedAliases = const [],
     required this.createdAt,
   });
 
@@ -43,6 +45,7 @@ class RecognitionProfile {
     'averageRepetitionDurationMs': averageRepetitionDurationMs,
     'calibratedAcceptThreshold': calibratedAcceptThreshold,
     'calibratedSpeechFloorDbfs': calibratedSpeechFloorDbfs,
+    'calibratedAliases': calibratedAliases,
     'createdAt': createdAt.toIso8601String(),
   };
 
@@ -57,6 +60,11 @@ class RecognitionProfile {
           (json['calibratedAcceptThreshold'] as num).toDouble(),
       calibratedSpeechFloorDbfs:
           (json['calibratedSpeechFloorDbfs'] as num).toDouble(),
+      calibratedAliases:
+          (json['calibratedAliases'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../domain/models/dhikr_definition.dart';
+import '../../domain/recognition/recognition_profile.dart';
+import '../calibration/voice_calibration_dialog.dart';
 import '../session/active_session_screen.dart';
 
 /// Pre-session detail screen for selecting targets and starting recitation.
@@ -17,11 +19,28 @@ class DhikrDetailScreen extends StatefulWidget {
 class _DhikrDetailScreenState extends State<DhikrDetailScreen> {
   int? _selectedTarget;
   final TextEditingController _customTargetController = TextEditingController();
+  RecognitionProfile? _voiceProfile;
+  bool _useVoiceCalibration = true;
 
   @override
   void initState() {
     super.initState();
     _selectedTarget = widget.dhikr.defaultTarget;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadVoiceProfile());
+  }
+
+  Future<void> _loadVoiceProfile() async {
+    final deps = AppScope.of(context);
+    final repo = deps.settingsController.repository;
+    if (repo == null) return;
+    final profile = await repo.getVoiceProfile(widget.dhikr.id);
+    final useCalibration = await repo.getUseVoiceCalibration(widget.dhikr.id);
+    if (mounted) {
+      setState(() {
+        _voiceProfile = profile;
+        _useVoiceCalibration = useCalibration;
+      });
+    }
   }
 
   @override
@@ -151,30 +170,110 @@ class _DhikrDetailScreenState extends State<DhikrDetailScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // Notice about offline voice recognition
+                  // Voice Calibration & Pronunciation Section
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(16),
+                      color: colorScheme.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _voiceProfile != null && _useVoiceCalibration
+                            ? Colors.green.withValues(alpha: 0.5)
+                            : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        width: _voiceProfile != null && _useVoiceCalibration ? 1.5 : 1.0,
+                      ),
                     ),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.mic_outlined,
-                          size: 20,
-                          color: colorScheme.primary,
+                        Row(
+                          children: [
+                            Icon(
+                              _voiceProfile != null && _useVoiceCalibration
+                                  ? Icons.verified_user_rounded
+                                  : Icons.record_voice_over_rounded,
+                              size: 22,
+                              color: _voiceProfile != null && _useVoiceCalibration
+                                  ? Colors.green
+                                  : colorScheme.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _voiceProfile != null
+                                    ? 'Personal Voice Profile'
+                                    : 'Train App on Your Voice',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            if (_voiceProfile != null)
+                              Switch.adaptive(
+                                value: _useVoiceCalibration,
+                                activeTrackColor: Colors.green,
+                                onChanged: (val) async {
+                                  setState(() {
+                                    _useVoiceCalibration = val;
+                                  });
+                                  await deps.settingsController.repository?.setUseVoiceCalibration(item.id, val);
+                                },
+                              ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'The app will listen for "${item.transliteration}" on-device. Audio is processed completely locally without Internet.',
+                        const SizedBox(height: 8),
+                        if (_voiceProfile != null) ...[
+                          Text(
+                            _useVoiceCalibration
+                                ? 'Active: Tailored to your pronunciation (${_voiceProfile!.calibratedAliases.length} phrases registered).'
+                                : 'Disabled: Using standard generic Arabic speech detection.',
                             style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              TextButton.icon(
+                                icon: const Icon(Icons.refresh_rounded, size: 16),
+                                label: const Text('Re-train Voice'),
+                                onPressed: () async {
+                                  final res = await VoiceCalibrationDialog.show(context, item);
+                                  if (res == true) _loadVoiceProfile();
+                                },
+                              ),
+                              const Spacer(),
+                              TextButton.icon(
+                                icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
+                                label: const Text('Reset', style: TextStyle(color: Colors.red)),
+                                onPressed: () async {
+                                  await deps.settingsController.repository?.removeVoiceProfile(item.id);
+                                  _loadVoiceProfile();
+                                },
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          Text(
+                            'If the default recognition misses your accent, dialect, or rapid tempo, recite 3 samples so the counter learns how you say it.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
                               height: 1.4,
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 14),
+                          FilledButton.tonalIcon(
+                            icon: const Icon(Icons.mic_rounded, size: 18),
+                            label: const Text('Train My Voice (3 Recitations)'),
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(44),
+                            ),
+                            onPressed: () async {
+                              final res = await VoiceCalibrationDialog.show(context, item);
+                              if (res == true) _loadVoiceProfile();
+                            },
+                          ),
+                        ],
                       ],
                     ),
                   ),

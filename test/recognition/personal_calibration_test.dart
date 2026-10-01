@@ -130,5 +130,30 @@ void main() {
       expect(calibratedMetrics.falsePositives, 0);
       expect(calibratedMetrics.recall, greaterThanOrEqualTo(0.95));
     });
+
+    test('captures and stores user pronunciation aliases during calibration', () {
+      final t0 = DateTime(2026, 1, 1, 12, 0, 0);
+      final examples = [
+        createSyntheticExample(amplitude: 0.5, durationMs: 1000, timestamp: t0),
+        createSyntheticExample(amplitude: 0.6, durationMs: 1050, timestamp: t0.add(const Duration(seconds: 2))),
+      ];
+
+      final profile = engine.calibrate(
+        dhikr: testDhikr,
+        examples: examples,
+        recognizedTranscripts: [
+          'أستعو في',
+          'استل في رضنا',
+        ],
+      );
+
+      expect(profile.calibratedAliases, contains('أستعو في'));
+      expect(profile.calibratedAliases, contains('استل في رضنا'));
+
+      // Serialization round-trip preserves user calibrated aliases
+      final json = profile.toJson();
+      final restored = RecognitionProfile.fromJson(json);
+      expect(restored.calibratedAliases, equals(profile.calibratedAliases));
+    });
   });
 }

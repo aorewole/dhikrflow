@@ -57,19 +57,34 @@ class AppDependencies {
     }
 
     final docsDir = await getApplicationDocumentsDirectory();
-    final modelDir = '${docsDir.path}/models/whisper_tiny';
-    final asrEngine = SherpaOnnxAsrEngine(
-      encoderPath: '$modelDir/tiny-encoder.int8.onnx',
-      decoderPath: '$modelDir/tiny-decoder.int8.onnx',
-      tokensPath: '$modelDir/tiny-tokens.txt',
+    final baseDir = '${docsDir.path}/models/whisper_base';
+    final tinyDir = '${docsDir.path}/models/whisper_tiny';
+
+    final SherpaOnnxAsrEngine asrEngine;
+    final baseEngine = SherpaOnnxAsrEngine(
+      encoderPath: '$baseDir/base-encoder.int8.onnx',
+      decoderPath: '$baseDir/base-decoder.int8.onnx',
+      tokensPath: '$baseDir/base-tokens.txt',
     );
+
+    if (baseEngine.areModelFilesPresent) {
+      asrEngine = baseEngine;
+      debugPrint('[AppDependencies] Using high-accuracy Whisper Base Arabic model.');
+    } else {
+      asrEngine = SherpaOnnxAsrEngine(
+        encoderPath: '$tinyDir/tiny-encoder.int8.onnx',
+        decoderPath: '$tinyDir/tiny-decoder.int8.onnx',
+        tokensPath: '$tinyDir/tiny-tokens.txt',
+      );
+      debugPrint('[AppDependencies] Using lightweight Whisper Tiny model.');
+    }
 
     final settingsController = SettingsController(repository: settingsRepo);
     await settingsController.loadSettings();
 
     final RecognitionEngine recognitionEngine;
     if (asrEngine.areModelFilesPresent) {
-      debugPrint('[AppDependencies] Whisper Tiny ONNX models present. Starting LocalRecognitionEngine with offline ASR.');
+      debugPrint('[AppDependencies] Models present. Starting LocalRecognitionEngine with offline ASR.');
       final localEngine = LocalRecognitionEngine(
         pipeline: pipeline,
         asrEngine: asrEngine,

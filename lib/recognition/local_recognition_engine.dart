@@ -60,6 +60,7 @@ class LocalRecognitionEngine implements RecognitionEngine {
   StreamingRepetitionDetector? _repetitionDetector;
 
   RecognitionConfig config;
+  List<String>? activeCalibratedAliases;
 
   LocalRecognitionEngine({
     required this.pipeline,
@@ -78,12 +79,33 @@ class LocalRecognitionEngine implements RecognitionEngine {
     config = newConfig;
     pipeline.vad.speechThresholdDbfs = newConfig.speechThresholdDbfs;
     if (_currentTarget != null) {
+      final combinedAliases = [
+        ..._currentTarget!.aliases,
+        ...?activeCalibratedAliases,
+      ];
       _repetitionDetector = StreamingRepetitionDetector(
         targetPhrase: _currentTarget!.arabic,
+        targetAliases: combinedAliases,
         matcher: PhraseMatcher(
           acceptThreshold: newConfig.acceptThreshold,
           uncertainThreshold: newConfig.uncertainThreshold,
         ),
+      );
+    }
+  }
+
+  /// Sets personal calibrated pronunciation aliases for the active user.
+  void setCalibratedAliases(List<String>? aliases) {
+    activeCalibratedAliases = aliases;
+    if (_currentTarget != null) {
+      final combinedAliases = [
+        ..._currentTarget!.aliases,
+        ...?activeCalibratedAliases,
+      ];
+      _repetitionDetector = StreamingRepetitionDetector(
+        targetPhrase: _currentTarget!.arabic,
+        targetAliases: combinedAliases,
+        matcher: matcher,
       );
     }
   }
@@ -113,9 +135,14 @@ class LocalRecognitionEngine implements RecognitionEngine {
       await asrEngine.initialize();
     }
 
-    // Set up phrase matcher and repetition detector for the selected dhikr
+    // Set up phrase matcher and repetition detector for the selected dhikr with aliases
+    final combinedAliases = [
+      ...target.aliases,
+      ...?activeCalibratedAliases,
+    ];
     _repetitionDetector = StreamingRepetitionDetector(
       targetPhrase: target.arabic,
+      targetAliases: combinedAliases,
       matcher: matcher,
     );
 

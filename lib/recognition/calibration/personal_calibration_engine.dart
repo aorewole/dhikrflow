@@ -80,6 +80,20 @@ class PersonalCalibrationEngine {
       calibratedAccept = 0.84;
     }
 
+    final Set<String> userAliases = {};
+    if (recognizedTranscripts != null) {
+      for (final t in recognizedTranscripts) {
+        final trimmed = t.trim();
+        if (trimmed.isNotEmpty) {
+          userAliases.add(trimmed);
+          final norm = ArabicNormalizer.normalize(trimmed);
+          if (norm.isNotEmpty) {
+            userAliases.add(norm);
+          }
+        }
+      }
+    }
+
     return RecognitionProfile(
       id: 'profile-${DateTime.now().millisecondsSinceEpoch}',
       dhikrId: dhikr.id,
@@ -87,6 +101,7 @@ class PersonalCalibrationEngine {
       averageRepetitionDurationMs: avgDurationMs,
       calibratedAcceptThreshold: double.parse(calibratedAccept.toStringAsFixed(2)),
       calibratedSpeechFloorDbfs: double.parse(calibratedSpeechFloor.toStringAsFixed(1)),
+      calibratedAliases: userAliases.toList(),
       createdAt: DateTime.now(),
     );
   }

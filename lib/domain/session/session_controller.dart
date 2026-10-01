@@ -9,6 +9,7 @@ import '../events/count_events.dart';
 import '../models/dhikr_definition.dart';
 import '../models/dhikr_session.dart';
 import '../recognition/recognition_engine.dart';
+import '../../recognition/local_recognition_engine.dart';
 import '../settings/settings_controller.dart';
 
 /// Central state machine controlling active dhikr sessions.
@@ -79,6 +80,25 @@ class SessionController extends ChangeNotifier {
     _stateSubscription = recognitionEngine.stateStream.listen((_) {
       notifyListeners();
     });
+
+    // Load personal voice calibration profile if available and active
+    final repo = settingsController?.repository;
+    if (repo != null && recognitionEngine is LocalRecognitionEngine) {
+      final useCalibration = await repo.getUseVoiceCalibration(dhikr.id);
+      if (useCalibration) {
+        final profile = await repo.getVoiceProfile(dhikr.id);
+        if (profile != null) {
+          (recognitionEngine as LocalRecognitionEngine)
+              .setCalibratedAliases(profile.calibratedAliases);
+        } else {
+          (recognitionEngine as LocalRecognitionEngine)
+              .setCalibratedAliases(null);
+        }
+      } else {
+        (recognitionEngine as LocalRecognitionEngine)
+            .setCalibratedAliases(null);
+      }
+    }
 
     await recognitionEngine.start(dhikr);
     await backgroundListeningService?.onSessionStarted(dhikr);

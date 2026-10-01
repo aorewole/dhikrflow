@@ -6,14 +6,30 @@ import 'package:path_provider/path_provider.dart';
 /// Helper to ensure offline Whisper ONNX models bundled in Flutter assets
 /// are extracted into the application's local documents directory for native C++ loading.
 class ModelAssetExtractor {
-  static const List<String> requiredModelFiles = [
+  static const List<String> whisperBaseFiles = [
+    'base-encoder.int8.onnx',
+    'base-decoder.int8.onnx',
+    'base-tokens.txt',
+  ];
+
+  static const List<String> whisperTinyFiles = [
     'tiny-encoder.int8.onnx',
     'tiny-decoder.int8.onnx',
     'tiny-tokens.txt',
   ];
 
+  /// Returns the target directory for the Whisper Base ONNX model.
+  static Future<Directory> getBaseModelDirectory() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final modelDir = Directory('${docsDir.path}/models/whisper_base');
+    if (!modelDir.existsSync()) {
+      await modelDir.create(recursive: true);
+    }
+    return modelDir;
+  }
+
   /// Returns the target directory for the Whisper Tiny ONNX model.
-  static Future<Directory> getModelDirectory() async {
+  static Future<Directory> getTinyModelDirectory() async {
     final docsDir = await getApplicationDocumentsDirectory();
     final modelDir = Directory('${docsDir.path}/models/whisper_tiny');
     if (!modelDir.existsSync()) {
@@ -22,43 +38,47 @@ class ModelAssetExtractor {
     return modelDir;
   }
 
-  /// Checks if all required model files are present and non-empty.
-  static Future<bool> areModelsExtracted() async {
-    final dir = await getModelDirectory();
-    for (final filename in requiredModelFiles) {
-      final file = File('${dir.path}/$filename');
-      if (!file.existsSync() || file.lengthSync() == 0) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   /// Extracts the model files from assets if they are missing or incomplete.
+  /// Prioritizes Whisper Base (higher Arabic accuracy) and falls back to Whisper Tiny.
   static Future<bool> ensureModelsExtracted() async {
-    final dir = await getModelDirectory();
+    // 1. Try extracting Whisper Base
+    final baseDir = await getBaseModelDirectory();
+    bool baseSuccess = true;
+    for (final filename in whisperBaseFiles) {
+      final destFile = File('${baseDir.path}/$filename');
+      if (destFile.existsSync() && destFile.lengthSync() > 0) continue;
 
-    // Check if already extracted
-    bool allPresent = true;
-    for (final filename in requiredModelFiles) {
-      final file = File('${dir.path}/$filename');
-      if (!file.existsSync() || file.lengthSync() == 0) {
-        allPresent = false;
-        break;
+      try {
+        final assetPath = 'assets/models/whisper_base/$filename';
+        final byteData = await rootBundle.load(assetPath);
+        final bytes = byteData.buffer.asUint8List(
+          byteData.offsetInBytes,
+          byteData.lengthInBytes,
+        );
+        await destFile.writeAsBytes(bytes, flush: true);
+        debugPrint('[ModelAssetExtractor] Extracted Whisper Base: $filename (${bytes.length} bytes)');
+      } catch (_) {
+        final localFile = File('assets/models/whisper_base/$filename');
+        if (localFile.existsSync() && localFile.lengthSync() > 0) {
+          await localFile.copy(destFile.path);
+          debugPrint('[ModelAssetExtractor] Copied $filename from local filesystem fallback.');
+        } else {
+          baseSuccess = false;
+        }
       }
     }
 
-    if (allPresent) {
-      debugPrint('[ModelAssetExtractor] All model files are already extracted.');
+    if (baseSuccess) {
+      debugPrint('[ModelAssetExtractor] Whisper Base models ready on device.');
       return true;
     }
 
-    debugPrint('[ModelAssetExtractor] Extracting offline Whisper model files from assets...');
-    for (final filename in requiredModelFiles) {
-      final destinationFile = File('${dir.path}/$filename');
-      if (destinationFile.existsSync() && destinationFile.lengthSync() > 0) {
-        continue;
-      }
+    // 2. Fallback to Whisper Tiny
+    final tinyDir = await getTinyModelDirectory();
+    bool tinySuccess = true;
+    for (final filename in whisperTinyFiles) {
+      final destFile = File('${tinyDir.path}/$filename');
+      if (destFile.existsSync() && destFile.lengthSync() > 0) continue;
 
       try {
         final assetPath = 'assets/models/whisper_tiny/$filename';
@@ -67,21 +87,19 @@ class ModelAssetExtractor {
           byteData.offsetInBytes,
           byteData.lengthInBytes,
         );
-        await destinationFile.writeAsBytes(bytes, flush: true);
-        debugPrint('[ModelAssetExtractor] Extracted $filename (${bytes.length} bytes)');
-      } catch (e) {
-        debugPrint('[ModelAssetExtractor] Could not load asset $filename: $e');
-        // Fallback for local desktop / test runs
+        await destFile.writeAsBytes(bytes, flush: true);
+        debugPrint('[ModelAssetExtractor] Extracted Whisper Tiny: $filename (${bytes.length} bytes)');
+      } catch (_) {
         final localFile = File('assets/models/whisper_tiny/$filename');
         if (localFile.existsSync() && localFile.lengthSync() > 0) {
-          await localFile.copy(destinationFile.path);
+          await localFile.copy(destFile.path);
           debugPrint('[ModelAssetExtractor] Copied $filename from local filesystem fallback.');
         } else {
-          return false;
+          tinySuccess = false;
         }
       }
     }
 
-    return true;
+    return tinySuccess;
   }
 }
