@@ -10,7 +10,7 @@
 
 | Tool / Component | Version / Path | Status | Notes |
 |---|---|---|---|
-| **Flutter SDK** | 3.47.5 (Channel stable) | **Ready** | Installed at `/Users/ammaarorewole/Development/flutter` |
+| **Flutter SDK** | 3.47.5 (Channel stable) | **Ready** | Installed at `~/development/flutter` |
 | **Dart SDK** | 3.13.4 | **Ready** | Bundled with Flutter SDK |
 | **Git** | 2.39.5 (Apple Git-154) | **Ready** | Workspace repository initialized |
 | **Xcode** | 26.6 (Build 17F113) | **Ready** | `/Applications/Xcode.app/Contents/Developer` |

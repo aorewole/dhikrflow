@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Phase 13 implemented and benchmarked an experimental **Auto-Detect** mode in accordance with [AGENTS.md](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/AGENTS.md) and [docs/BUILD_ROADMAP.md](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/docs/BUILD_ROADMAP.md).
+Phase 13 implemented and benchmarked an experimental **Auto-Detect** mode in accordance with [AGENTS.md](../AGENTS.md) and [docs/BUILD_ROADMAP.md](./BUILD_ROADMAP.md).
 
 - **Objective:** Allow a user to begin reciting without preselecting a specific dhikr from the library list.
 - **Privacy & Safety Guarantees:** 100% on-device matching against the 10 canonical library phrases. Requires high confidence ($\ge 0.88$) to lock target. Strictly prevents accidental silent target switching during active recitation.

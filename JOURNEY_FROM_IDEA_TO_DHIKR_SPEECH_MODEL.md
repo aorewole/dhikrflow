@@ -166,7 +166,7 @@ By training a **dedicated Dhikr Acoustic Classifier / Conformer-CTC model**:
 ## Chapter 5: The Next Step — Training the Dedicated Dhikr Model
 
 To make this happen, I have created a dedicated, modular sub-project within this repository:  
-[**`dhikr_ai_training/`**](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/dhikr_ai_training/).
+[**`dhikr_ai_training/`**](./dhikr_ai_training/).
 
 The mobile app is completely built, tested, and waiting. The UI, the persistence, the haptics, the audio pipeline, and the native ONNX bridge are 100% operational. Now, we are embarking on training the **dedicated speech engine that will power it**.
 

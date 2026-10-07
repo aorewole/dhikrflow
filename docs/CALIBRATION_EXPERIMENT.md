@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Phase 12 prototyped an on-device **Personal Calibration** subsystem in accordance with [AGENTS.md](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/AGENTS.md) and [docs/BUILD_ROADMAP.md](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/docs/BUILD_ROADMAP.md).
+Phase 12 prototyped an on-device **Personal Calibration** subsystem in accordance with [AGENTS.md](../AGENTS.md) and [docs/BUILD_ROADMAP.md](./BUILD_ROADMAP.md).
 
 - **Approach:** Acoustic and tempo parameter derivation (speech dBFS floor, average phrase duration, similarity scoring) extracted from 3–5 sample recitations.
 - **Privacy Enforcement:** 100% on-device processing. Raw audio buffers are processed in memory and **discarded immediately**. Only scalar statistical metadata is retained in the compact `RecognitionProfile`.
@@ -38,7 +38,7 @@ User Recites 3 Examples
 
 ## 2. Quantitative Evaluation: Baseline vs. Calibrated
 
-Using [`RecognitionTestHarness`](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/lib/recognition/calibration/recognition_test_harness.dart) over the 10 canonical test cases:
+Using [`RecognitionTestHarness`](../lib/recognition/calibration/recognition_test_harness.dart) over the 10 canonical test cases:
 
 | Metric | Baseline Preset (*Balanced*) | Calibrated Profile | Delta / Observation |
 | :--- | :--- | :--- | :--- |

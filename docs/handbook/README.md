@@ -22,10 +22,10 @@ docs/handbook/
 
 | Document | Target Audience | Primary Focus |
 | :--- | :--- | :--- |
-| [**00. Executive Summary**](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/docs/handbook/00_EXECUTIVE_SUMMARY.md) | Regular users, product managers, stakeholders | Purpose, core philosophy, non-negotiable privacy guarantee, key features, and plain-English explanation of how it counts without tapping. |
-| [**01. Technical Architecture**](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/docs/handbook/01_TECHNICAL_ARCHITECTURE.md) | Mobile engineers, DSP specialists, developers | Architectural diagrams, Layer separation, Speech Envelope Analyzer (ARe), zero-crossing rates, VAD, state machine, and local persistence. |
-| [**02. Engineering Journey & Hurdles**](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/docs/handbook/02_ENGINEERING_JOURNEY.md) | Technical leads, archive reviewers | Complete post-mortem: Whisper vs Moonshine hallucinations, the clap-burst dilemma, waqf/sukūn TTS case vowel bugs, memory footprints, and decoupling. |
-| [**03. User & Operational Guide**](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/docs/handbook/03_USER_GUIDE.md) | End users, QA testers | Screen walkthroughs, pacing speeds (Slow/Medium/Fast), breath cadence customization, feedback modes (Mute/Haptic/Voice), and manual tap fallback. |
+| [**00. Executive Summary**](./00_EXECUTIVE_SUMMARY.md) | Regular users, product managers, stakeholders | Purpose, core philosophy, non-negotiable privacy guarantee, key features, and plain-English explanation of how it counts without tapping. |
+| [**01. Technical Architecture**](./01_TECHNICAL_ARCHITECTURE.md) | Mobile engineers, DSP specialists, developers | Architectural diagrams, Layer separation, Speech Envelope Analyzer (ARe), zero-crossing rates, VAD, state machine, and local persistence. |
+| [**02. Engineering Journey & Hurdles**](./02_ENGINEERING_JOURNEY.md) | Technical leads, archive reviewers | Complete post-mortem: Whisper vs Moonshine hallucinations, the clap-burst dilemma, waqf/sukūn TTS case vowel bugs, memory footprints, and decoupling. |
+| [**03. User & Operational Guide**](./03_USER_GUIDE.md) | End users, QA testers | Screen walkthroughs, pacing speeds (Slow/Medium/Fast), breath cadence customization, feedback modes (Mute/Haptic/Voice), and manual tap fallback. |
 
 ---
 

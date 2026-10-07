@@ -34,7 +34,7 @@
 
 ## 3. Dependency & License Compliance
 
-All dependencies documented in [`docs/DEPENDENCIES.md`](file:///Users/ammaarorewole/Documents/dhikr_counter_antigravity_starter/docs/DEPENDENCIES.md):
+All dependencies documented in [`docs/DEPENDENCIES.md`](./DEPENDENCIES.md):
 
 | Component | Version | License | Redistribution Terms Met |
 | :--- | :--- | :--- | :--- |
