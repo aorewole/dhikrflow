@@ -202,26 +202,28 @@ class _RecitationLetterSweepState extends State<RecitationLetterSweep>
           crossFadeState: widget.isBreathingPause
               ? CrossFadeState.showFirst
               : CrossFadeState.showSecond,
-          firstChild: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.teal.withValues(alpha: 0.22),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.tealAccent.shade400,
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.tealAccent.withValues(alpha: 0.2),
-                  blurRadius: 10,
-                  spreadRadius: 1,
+          firstChild: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.teal.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.tealAccent.shade400,
+                  width: 1.5,
                 ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.tealAccent.withValues(alpha: 0.2),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 Icon(
                   Icons.air_rounded,
                   size: 17,
@@ -255,7 +257,8 @@ class _RecitationLetterSweepState extends State<RecitationLetterSweep>
               ],
             ),
           ),
-          secondChild: Container(
+        ),
+        secondChild: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),

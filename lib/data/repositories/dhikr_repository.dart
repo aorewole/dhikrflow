@@ -113,7 +113,7 @@ const List<DhikrDefinition> kCanonicalAdhkar = [
   DhikrDefinition(
     id: "astaghfirullah_wa_atubu_ilayh",
     arabic: "أَسْتَغْفِرُ ٱللّٰهَ وَأَتُوبُ إِلَيْهْ",
-    transliteration: "Astaghfirullaha wa atubu ilayh",
+    transliteration: "Astaghfirullah wa atubu ilayh",
     translation: "I seek forgiveness from Allah and repent to Him",
     category: "Forgiveness",
     defaultTarget: 100,

@@ -230,8 +230,8 @@ void main() {
           minRepDurationMs: minRep,
           maxRepDurationMs: maxRep,
         );
-        // Claps are each 80ms — even with gaps the inter-onset is ~380ms,
-        // below minRepDurationMs (450ms). Should not be actionable.
+        // ignore: avoid_print
+        print('DEBUG 3 claps result: $result, isActionable=${result.isActionable}');
         expect(result.isActionable, isFalse);
       });
 
@@ -344,6 +344,80 @@ void main() {
           acceptedValleyCount: 1,
         );
         expect(r.isActionable, isFalse);
+      });
+    });
+
+    group('multi-word and long litany handling', () {
+      test('5-token dhikr with internal phrasing dip produces count=1 not 2', () {
+        // e.g. "Astaghfirullah" (1200ms) + 120ms pause + "wa atubu ilayh" (1100ms) = 2420ms total
+        final range = SpeechEnvelopeAnalyzer.expectedDurationRange(5);
+        expect(range.min, equals(1900));
+        expect(range.max, equals(3800));
+
+        final segment = _makeSegment([
+          _speechBurst(durationMs: 1200, sampleRate: sampleRate),
+          _silence(durationMs: 120, sampleRate: sampleRate),
+          _speechBurst(durationMs: 1100, sampleRate: sampleRate),
+        ]);
+
+        final result = SpeechEnvelopeAnalyzer.analyze(
+          segment,
+          minRepDurationMs: range.min,
+          maxRepDurationMs: range.max,
+        );
+
+        // Crucial: Must be 1, never 2!
+        expect(result.estimatedCount, equals(1));
+        expect(result.isActionable, isTrue);
+      });
+
+      test('astaghfirullah_wa_atubu_ilayh 4 tokens with mid-phrase breath produces count=1 not 2', () {
+        // Exactly what happened in user testing: 2200ms total, 1101ms before, 1101ms after
+        final range = SpeechEnvelopeAnalyzer.expectedDurationRange(
+          4,
+          dhikrId: 'astaghfirullah_wa_atubu_ilayh',
+          arabicText: 'أَسْتَغْفِرُ ٱللّٰهَ وَأَتُوبُ إِلَيْهْ',
+        );
+        expect(range.min, equals(1900));
+
+        final segment = _makeSegment([
+          _speechBurst(durationMs: 1100, sampleRate: sampleRate),
+          _silence(durationMs: 100, sampleRate: sampleRate),
+          _speechBurst(durationMs: 1100, sampleRate: sampleRate),
+        ]);
+
+        final result = SpeechEnvelopeAnalyzer.analyze(
+          segment,
+          minRepDurationMs: range.min,
+          maxRepDurationMs: range.max,
+        );
+
+        expect(result.estimatedCount, equals(1));
+        expect(result.isActionable, isTrue);
+      });
+
+      test('16-token long litany with phrasing pauses produces count=1', () {
+        // e.g. Bismillahi-lladhi... (16 tokens, ~8000ms total recitation)
+        final range = SpeechEnvelopeAnalyzer.expectedDurationRange(16);
+        expect(range.min, equals((16 * 380).round())); // 6080ms
+
+        final segment = _makeSegment([
+          _speechBurst(durationMs: 2500, sampleRate: sampleRate),
+          _silence(durationMs: 150, sampleRate: sampleRate),
+          _speechBurst(durationMs: 2600, sampleRate: sampleRate),
+          _silence(durationMs: 150, sampleRate: sampleRate),
+          _speechBurst(durationMs: 2400, sampleRate: sampleRate),
+        ]); // ~7800ms total
+
+        final result = SpeechEnvelopeAnalyzer.analyze(
+          segment,
+          minRepDurationMs: range.min,
+          maxRepDurationMs: range.max,
+        );
+
+        // Must count as 1 repetition
+        expect(result.estimatedCount, equals(1));
+        expect(result.isActionable, isTrue);
       });
     });
   });

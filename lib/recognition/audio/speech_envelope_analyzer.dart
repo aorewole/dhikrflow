@@ -38,11 +38,17 @@ class EnvelopeAnalysisResult {
 
   /// True when this result is confident enough to act on independently
   /// (i.e. when ASR returned zero or hallucinated).
-  bool get isActionable =>
-      confidence >= 0.72 &&
-      isRhythmicVoicedSpeech &&
-      estimatedCount >= 1 &&
-      meanRepetitionDurationMs >= 440;
+  bool get isActionable {
+    if (estimatedCount == 1) {
+      return confidence >= 0.60 &&
+          isRhythmicVoicedSpeech &&
+          meanRepetitionDurationMs >= 350;
+    }
+    return confidence >= 0.70 &&
+        isRhythmicVoicedSpeech &&
+        estimatedCount >= 1 &&
+        meanRepetitionDurationMs >= 400;
+  }
 
   static const EnvelopeAnalysisResult empty = EnvelopeAnalysisResult(
     estimatedCount: 0,
@@ -232,15 +238,41 @@ class SpeechEnvelopeAnalyzer {
 
     final totalSegMs = segment.duration.inMilliseconds;
 
+    // Safety guard against intra-phrase pauses in long phrases:
+    // If the detected valleys would force mean repetition duration below 80% of minRepDurationMs,
+    // the valley was an internal phrasing breath (e.g. between "Astaghfirullah" and "wa atubu ilayh"),
+    // not a true multi-repetition boundary.
+    if (accepted.isNotEmpty &&
+        (totalSegMs / (accepted.length + 1)) < (minRepDurationMs * 0.80)) {
+      accepted.clear();
+    }
+
     if (accepted.isEmpty) {
       // Single uninterrupted repetition check.
-      if (totalSegMs >= minRepDurationMs && totalSegMs <= maxRepDurationMs * 1.5) {
+      // Must be within expected duration bounds and have sustained voiced energy.
+      if (totalSegMs >= (minRepDurationMs * 0.60).round() &&
+          totalSegMs <= (maxRepDurationMs * 1.5).round()) {
+        // Active speech duty cycle check:
+        // A genuine continuous dhikr repetition maintains speech energy across
+        // at least 45% of the segment. Isolated transients (claps, taps, clicks)
+        // are mostly silence and fail this check.
+        int activeFrames = 0;
+        final activeThreshold = _minGlobalPeak * 2;
+        for (int i = 0; i < frameCount; i++) {
+          if (envelope[i] >= activeThreshold) activeFrames++;
+        }
+        final dutyCycle = activeFrames / frameCount;
+        if (dutyCycle < 0.45) {
+          return EnvelopeAnalysisResult.empty;
+        }
+
         final zcr = _meanZcrHz(flat, sampleRate);
         final voiced = _voicedLikelihood(zcr, globalPeak);
+        final isVoiced = voiced >= 0.55;
         return EnvelopeAnalysisResult(
-          estimatedCount: 1,
-          confidence: voiced * 0.62,
-          isRhythmicVoicedSpeech: voiced > 0.55,
+          estimatedCount: isVoiced ? 1 : 0,
+          confidence: isVoiced ? (voiced * 0.85).clamp(0.0, 1.0) : 0.0,
+          isRhythmicVoicedSpeech: isVoiced,
           meanRepetitionDurationMs: totalSegMs.toDouble(),
           rawValleyCount: rawValleys.length,
           acceptedValleyCount: 0,
@@ -290,8 +322,77 @@ class SpeechEnvelopeAnalyzer {
   }
 
   /// Returns the expected single-repetition duration range (min, max) in ms
-  /// based on the number of Arabic tokens in the dhikr phrase.
-  static ({int min, int max}) expectedDurationRange(int tokenCount) {
+  /// based on the selected dhikr, its text length, or the number of Arabic tokens.
+  static ({int min, int max}) expectedDurationRange(
+    int tokenCount, {
+    String? dhikrId,
+    String? arabicText,
+  }) {
+    // 1. Explicit per-dhikr calibration for standard library litanies
+    if (dhikrId != null) {
+      switch (dhikrId) {
+        case 'astaghfirullah':
+        case 'subhanallah':
+        case 'alhamdulillah':
+        case 'allahu_akbar':
+          return (min: 650, max: 1500);
+
+        case 'subhanallahi_wa_bihamdihi':
+        case 'subhanallahil_azeem':
+        case 'subhana_rabbiyal_ala':
+        case 'subhana_rabbiyal_azeem':
+          return (min: 1200, max: 2400);
+
+        case 'la_ilaha_illallah':
+          return (min: 1400, max: 2800);
+
+        case 'astaghfirullah_wa_atubu_ilayh':
+          // "Astaghfirullah wa atubu ilayh": 11-12 syllables.
+          // Single repetition takes ~1.9s - 3.2s.
+          // Floor of 1900ms strictly prevents intra-phrase valleys from double-counting.
+          return (min: 1900, max: 3800);
+
+        case 'rabbighfir_li_wa_tub_alayya':
+          return (min: 2400, max: 4800);
+
+        case 'la_hawla':
+        case 'hasbunallahu_wa_nimal_wakeel':
+        case 'ya_hayyu_ya_qayyum':
+        case 'audhu_bikalimatillah':
+        case 'bismillahi_tawakkaltu':
+        case 'allahumma_salli_ala_muhammad':
+        case 'allahumma_salli_wa_sallim':
+          return (min: 2200, max: 4500);
+
+        case 'la_ilaha_illallah_wahdahu':
+        case 'tahlil_tamam':
+        case 'raditu_billah':
+        case 'hasbiyallahu_la_ilaha':
+        case 'subhanallahi_adada_khalqihi':
+        case 'salawat_ibrahimiyyah_short':
+          return (min: 3500, max: 8000);
+
+        case 'bismillahilladhi':
+        case 'sayyid_al_istighfar':
+        case 'yunus_dhikr':
+          return (min: 5000, max: 15000);
+      }
+    }
+
+    // 2. Text-aware heuristic if arabicText is available
+    if (arabicText != null) {
+      if (arabicText.contains('أتوب') || arabicText.contains('اتوب')) {
+        return (min: 1900, max: 3800);
+      }
+      final cleanText = arabicText.replaceAll(RegExp(r'\s+'), '');
+      if (cleanText.length >= 15) {
+        final minMs = (cleanText.length * 115).clamp(1800, 14000);
+        final maxMs = (cleanText.length * 260).clamp(3500, 30000);
+        return (min: minMs, max: maxMs);
+      }
+    }
+
+    // 3. Fallback token-count based ranges
     switch (tokenCount) {
       case 1:
         return (min: 250, max: 900);
@@ -300,13 +401,18 @@ class SpeechEnvelopeAnalyzer {
         return (min: 650, max: 1500);
       case 3:
         // سُبْحَانَ ٱللَّٰهِ وَبِحَمْدِهِ
-        return (min: 900, max: 2000);
+        return (min: 1100, max: 2200);
       case 4:
-        // لا إله إلا الله, اللهم صل على محمد, حسبنا الله ونعم الوكيل
-        return (min: 1100, max: 2400);
+        // لا إله إلا الله
+        return (min: 1400, max: 2800);
+      case 5:
+        // أَسْتَغْفِرُ ٱللّٰهَ وَأَتُوبُ إِلَيْهْ
+        return (min: 1900, max: 3800);
       default:
-        // لا حول ولا قوة إلا بالله etc.
-        return (min: 1400, max: 3500);
+        // Multi-word litanies (6+ tokens): scale proportionally with token count
+        final minMs = (tokenCount * 380).round();
+        final maxMs = (tokenCount * 950).round();
+        return (min: minMs, max: maxMs);
     }
   }
 
@@ -423,16 +529,22 @@ class SpeechEnvelopeAnalyzer {
       if (accepted.isEmpty) {
         // First valley: before = centreFrame × frameSizeMs
         final beforeMs = v.centreFrame * _frameSizeMs;
-        // After = total frames not yet known, but we need both halves plausible.
-        // Use beforeMs as a proxy: the valley must not split the segment
-        // into two halves each < minRepDurationMs.
-        if (beforeMs < minRepDurationMs) continue;
+        final afterMs = (frameCount - v.centreFrame) * _frameSizeMs;
+        // Both the speech chunk BEFORE and AFTER must be plausible full repetitions:
+        // Speech before the first valley must be at least 88% of minRepDurationMs.
+        if (beforeMs < (minRepDurationMs * 0.88).round() ||
+            afterMs < (minRepDurationMs * 0.70).round()) {
+          continue;
+        }
       } else {
         // Subsequent valleys: IOI from last accepted valley centre.
         final ioiMs = (v.centreFrame - accepted.last.centreFrame) * _frameSizeMs;
-        final minIoi = minRepDurationMs ~/ 2;
+        final afterMs = (frameCount - v.centreFrame) * _frameSizeMs;
+        final minIoi = (minRepDurationMs * 0.75).round();
         final maxIoi = maxRepDurationMs * 2;
-        if (ioiMs < minIoi || ioiMs > maxIoi) continue;
+        if (ioiMs < minIoi || ioiMs > maxIoi || afterMs < (minRepDurationMs * 0.70).round()) {
+          continue;
+        }
       }
 
       accepted.add(v);

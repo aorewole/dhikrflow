@@ -165,17 +165,26 @@ class ArabicNormalizer {
     return s.replaceAll(_whitespaceRegex, ' ').trim();
   }
 
-  /// Ensures an Arabic phrase ends with liturgical waqf (coda stop without trailing case vowels)
+  /// Ensures an Arabic phrase ends with liturgical waqf (coda stop with explicit sukūn)
   /// and sanitizes any erroneous redundant diacritics (such as misplaced fatha on the Lafdh al-Jalalah ligature).
   ///
   /// In liturgical dhikr recitation, stopping at phrase boundaries (waqf) silences
   /// the grammatical vowel ending (i'rab: fathah, kasrah, dammah, tanween) into pausal silence.
-  /// For instance: "أَسْتَغْفِرُ ٱللَّٰهَ" -> "أَسْتَغْفِرُ ٱللّٰه".
+  /// For instance: "أَسْتَغْفِرُ ٱللَّٰهَ" -> "أَسْتَغْفِرُ ٱللّٰهْ".
   static String enforceSukunCoda(String text) {
     if (text.isEmpty) return text;
     // 1. Remove redundant fatha before shadda + superscript dagger alif (0x64E + 0x651 + 0x670 -> 0x651 + 0x670)
     String sanitized = text.replaceAll('\u064e\u0651\u0670', '\u0651\u0670');
-    // 2. Strip any trailing vowel harakat/tashkeel at the very end of the string
-    return sanitized.replaceAll(RegExp(r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]+$'), '').trim();
+    // 2. Strip any trailing short vowels/tashkeel at the very end of the string
+    sanitized = sanitized
+        .replaceAll(
+          RegExp(r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]+$'),
+          '',
+        )
+        .trim();
+    if (sanitized.isEmpty) return '';
+    // 3. Attach explicit Arabic sukūn (ْ \u0652) to the final consonant to guarantee pausal silence
+    // across both Android Google/Samsung TTS and Apple AVSpeechSynthesizer.
+    return '$sanitized\u0652';
   }
 }

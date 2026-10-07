@@ -5,7 +5,7 @@ A free, 100% offline, privacy-first, hands-free Arabic dhikr counter built with 
 [![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android%20%7C%20macOS-0D5C54.svg)](https://flutter.dev)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%7C%20Zero%20Telemetry-2A8B78.svg)](#-non-negotiable-privacy-guarantees)
-[![Tests](https://img.shields.io/badge/Tests-136%20Passed-success.svg)](#-development--testing)
+[![Tests](https://img.shields.io/badge/Tests-139%20Passed-success.svg)](#-development--testing)
 
 ---
 

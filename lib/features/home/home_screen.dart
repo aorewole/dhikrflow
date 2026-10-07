@@ -20,23 +20,27 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  int _homeVisitKey = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: const [
-          _HomeDashboardView(),
-          DhikrLibraryScreen(),
-          HistoryScreen(),
-          SettingsScreen(),
+        children: [
+          _HomeDashboardView(key: ValueKey(_homeVisitKey)),
+          const DhikrLibraryScreen(),
+          const HistoryScreen(),
+          const SettingsScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {
+            if (index == 0 && _currentIndex != 0) {
+              _homeVisitKey++;
+            }
             _currentIndex = index;
           });
         },
@@ -68,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _HomeDashboardView extends StatefulWidget {
-  const _HomeDashboardView();
+  const _HomeDashboardView({super.key});
 
   @override
   State<_HomeDashboardView> createState() => _HomeDashboardViewState();
@@ -92,6 +96,8 @@ class _HomeDashboardViewState extends State<_HomeDashboardView> {
     final controller = AppScope.of(context).sessionController;
     controller.removeListener(_onSessionChanged);
     controller.addListener(_onSessionChanged);
+    _invalidateRecent();
+    _invalidateDraft();
   }
 
   @override
@@ -106,8 +112,8 @@ class _HomeDashboardViewState extends State<_HomeDashboardView> {
     if (!mounted) return;
     final hasActive =
         AppScope.of(context).sessionController.hasActiveSession;
-    if (_hadActiveSession && !hasActive) {
-      // A session just completed — refresh both sections.
+    if (_hadActiveSession != hasActive) {
+      // Session status transitioned (started or completed/ended) — refresh both sections immediately.
       _invalidateDraft();
       _invalidateRecent();
     }
@@ -120,6 +126,7 @@ class _HomeDashboardViewState extends State<_HomeDashboardView> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final primaryDhikr =
+        deps.dhikrRepository.getById('astaghfirullah_wa_atubu_ilayh') ??
         deps.dhikrRepository.getById('astaghfirullah') ??
         deps.dhikrRepository.getAll().first;
     final favorites = deps.dhikrRepository.getFavorites();
@@ -408,11 +415,15 @@ class _HomeDashboardViewState extends State<_HomeDashboardView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        trailing: Text(
-                          dhikr?.arabic ?? '',
-                          style: const TextStyle(fontSize: 16),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        trailing: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 120),
+                          child: Text(
+                            dhikr?.arabic ?? '',
+                            style: const TextStyle(fontSize: 16),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                          ),
                         ),
                       ),
                     );

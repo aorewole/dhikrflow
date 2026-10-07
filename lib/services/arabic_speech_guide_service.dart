@@ -90,8 +90,12 @@ class ArabicSpeechGuideService {
       // Appending a full-stop period forces native TTS (AVSpeechSynthesizer / Android TTS)
       // to apply liturgical Waqf (pausal silence on final vowel, e.g. "lah" instead of "laha").
       final speakable = clean.isNotEmpty ? '$clean.' : arabicPhrase;
+      _isPlaying = true;
+      onPlayStateChanged?.call(true);
       await _tts.speak(speakable);
     } catch (e) {
+      _isPlaying = false;
+      onPlayStateChanged?.call(false);
       if (kDebugMode) {
         debugPrint('[ArabicSpeechGuideService] Speak error: $e');
       }
@@ -102,6 +106,7 @@ class ArabicSpeechGuideService {
     try {
       await _tts.stop();
       _isPlaying = false;
+      onPlayStateChanged?.call(false);
     } catch (_) {}
   }
 

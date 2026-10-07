@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
@@ -49,10 +50,13 @@ class LocalRecognitionEngine implements RecognitionEngine {
   // ── Acoustic context guard ──────────────────────────────────────────────
   List<String>? activeCalibratedAliases;
 
-  /// Acoustic Echo Cancellation (AEC) Ducking guard:
-  /// When true, the device's own speaker is actively outputting speech (TTS),
-  /// so incoming microphone audio is ducked/ignored to prevent self-counting loopback.
+  /// Tracks whether the device speaker is actively outputting speech (TTS voice guide).
   bool isSpeakerOutputActive = false;
+
+  /// Sets whether the device speaker is actively outputting speech.
+  void setSpeakerOutputActive(bool active) {
+    isSpeakerOutputActive = active;
+  }
 
   LocalRecognitionEngine({
     required this.pipeline,
@@ -143,32 +147,48 @@ class LocalRecognitionEngine implements RecognitionEngine {
     // For short dhikr (1-2 tokens), use a longer hangover so rapid back-to-back
     // reps are captured in the same segment rather than split into single-rep fragments.
     final tokenCount = ArabicNormalizer.tokenize(target.arabic).length;
-    if (tokenCount <= 2) {
-      // For 2-token dhikr (e.g. أستغفر الله, الحمد لله, الله أكبر):
+    final durRange = SpeechEnvelopeAnalyzer.expectedDurationRange(
+      tokenCount,
+      dhikrId: target.id,
+      arabicText: target.arabic,
+    );
+
+    if (durRange.min <= 1000) {
+      // 1-2 token short dhikr (e.g. أستغفر الله, الحمد لله, الله أكبر):
       // Fast 320ms hangover ensures immediate, snappy count updates upon word completion,
       // while continuous valley search slices multi-rep runs naturally.
       pipeline.vad.hangoverDuration = const Duration(milliseconds: 320);
       pipeline.vad.continuousSpeechSliceDuration =
-          const Duration(milliseconds: 2000);
+          const Duration(milliseconds: 2200);
       pipeline.vad.continuousValleySearchWindow =
           const Duration(milliseconds: 700);
       pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 6000);
-    } else if (tokenCount <= 4) {
-      // 3-4 token dhikr (e.g. سبحان الله وبحمده, لا إله إلا الله).
-      pipeline.vad.hangoverDuration = const Duration(milliseconds: 320);
-      pipeline.vad.continuousSpeechSliceDuration =
-          const Duration(milliseconds: 2800);
-      pipeline.vad.continuousValleySearchWindow =
-          const Duration(milliseconds: 900);
-      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 7000);
-    } else {
-      // 5+ token dhikr (e.g. لا حول ولا قوة إلا بالله).
+    } else if (durRange.min <= 1600) {
+      // Medium dhikr (e.g. سبحان الله وبحمده, لا إله إلا الله).
       pipeline.vad.hangoverDuration = const Duration(milliseconds: 350);
       pipeline.vad.continuousSpeechSliceDuration =
-          const Duration(milliseconds: 3800);
+          const Duration(milliseconds: 3200);
+      pipeline.vad.continuousValleySearchWindow =
+          const Duration(milliseconds: 900);
+      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 8000);
+    } else if (durRange.min <= 2600) {
+      // Extended dhikr (e.g. أستغفر الله وأتوب إليه, لا حول ولا قوة إلا بالله):
+      // Sized comfortably so a single repetition (~2.4s) is never partitioned prematurely.
+      pipeline.vad.hangoverDuration = const Duration(milliseconds: 450);
+      pipeline.vad.continuousSpeechSliceDuration =
+          const Duration(milliseconds: 6000);
       pipeline.vad.continuousValleySearchWindow =
           const Duration(milliseconds: 1200);
-      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 8000);
+      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 12000);
+    } else {
+      // Long litanies (e.g. لا إله إلا الله وحده لا شريك له..., بسم الله الذي لا يضر..., سيد الاستغفار).
+      // Crucial: NEVER slice continuous speech into arbitrary pieces for long litanies!
+      // A 650ms hangover allows natural breathing pauses between clauses without premature cutting.
+      pipeline.vad.hangoverDuration = const Duration(milliseconds: 650);
+      pipeline.vad.continuousSpeechSliceDuration = null;
+      pipeline.vad.continuousValleySearchWindow =
+          const Duration(milliseconds: 1200);
+      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 25000);
     }
 
     // Initialize local ASR engine if present
@@ -186,6 +206,9 @@ class LocalRecognitionEngine implements RecognitionEngine {
       targetAliases: combinedAliases,
       matcher: matcher,
       cadenceTracker: config.cadencePacingEnabled ? _cadenceTracker : null,
+      maxStalenessDuration: Duration(
+        milliseconds: math.max(6000, tokenCount * 1200),
+      ),
     );
 
     // Listen to real-time VAD energy for diagnostics
@@ -217,7 +240,10 @@ class LocalRecognitionEngine implements RecognitionEngine {
       final target = _currentTarget!;
 
 
-      // ── Physical Duration Floor (Impulsive Transient & Clap Shield) ───────
+      // Note: Hardware Acoustic Echo Cancellation (AEC) runs at the platform/DSP level
+      // via RecordConfig(echoCancel: true, noiseSuppress: true). Microphone audio is NEVER
+      // muted in software during TTS playback because the user recites along with the voice guide.
+
       // ── Physical Duration Floor (Impulsive Transient & Clap Shield) ───────
       // Claps, table snaps, and clicks are impulsive transients that typically
       // last 30-120ms. Human liturgical recitation physically takes longer.
@@ -252,7 +278,11 @@ class LocalRecognitionEngine implements RecognitionEngine {
       // ── Step 1: Acoustic Repetition Estimator (ARe) ──────────────────────
       // Fast, zero-latency physical envelope analysis on raw PCM.
       final tokenCount = ArabicNormalizer.tokenize(target.arabic).length;
-      final durRange = SpeechEnvelopeAnalyzer.expectedDurationRange(tokenCount);
+      final durRange = SpeechEnvelopeAnalyzer.expectedDurationRange(
+        tokenCount,
+        dhikrId: target.id,
+        arabicText: target.arabic,
+      );
       final areResult = SpeechEnvelopeAnalyzer.analyze(
         segment,
         minRepDurationMs: durRange.min,
@@ -296,8 +326,8 @@ class LocalRecognitionEngine implements RecognitionEngine {
       final areHasPlausibleRepetition =
           areResult.isActionable &&
           (areResult.estimatedCount == 1
-              ? areResult.meanRepetitionDurationMs >= durRange.min * 0.85
-              : areResult.meanRepetitionDurationMs >= durRange.min * 1.05);
+              ? areResult.meanRepetitionDurationMs >= durRange.min * 0.60
+              : areResult.meanRepetitionDurationMs >= durRange.min * 0.85);
 
       if (areHasPlausibleRepetition) {
         // Acoustic waveform rhythm successfully detected repetitions
@@ -370,8 +400,7 @@ class LocalRecognitionEngine implements RecognitionEngine {
           asrCount: asrEngine != null ? asrCount : null,
           areCount: areResult.estimatedCount,
           fusionReason: fusionReason,
-          isVoiceVerified:
-              areResult.isRhythmicVoicedSpeech || finalCount > 0,
+          isVoiceVerified: finalCount > 0,
         ),
       );
     } catch (e, st) {

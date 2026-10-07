@@ -17,11 +17,23 @@ enum PacingSpeed {
   Duration get duration => Duration(milliseconds: wordDurationMs);
 
   /// Calculates dynamic repetition duration proportional to phrase word count.
-  /// Enforces an ergonomic minimum floor (900ms) so even single-token dhikr breathes naturally.
+  /// Synchronizes with natural human liturgical cadence and speech engine synthesis rate:
+  /// The first two tokens establish liturgical rhythm (1.55x), and each subsequent token
+  /// breathes at a natural connected pace (~0.70x wordDurationMs).
   Duration durationForWordCount(int wordCount) {
     final count = wordCount <= 0 ? 1 : wordCount;
-    final totalMs = count * wordDurationMs;
-    return Duration(milliseconds: totalMs < 900 ? 900 : totalMs);
+    int totalMs;
+    if (count == 1) {
+      totalMs = wordDurationMs < 900 ? 900 : wordDurationMs;
+    } else if (count == 2) {
+      totalMs = (wordDurationMs * 1.55).round();
+    } else {
+      // 3+ words: each word connects with proper tajweed and harmonic pacing
+      totalMs = (wordDurationMs * 1.55 + (count - 2) * (wordDurationMs * 0.70)).round();
+    }
+    if (totalMs < 900) totalMs = 900;
+    if (totalMs > 14000) totalMs = 14000;
+    return Duration(milliseconds: totalMs);
   }
 }
 

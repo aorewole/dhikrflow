@@ -49,7 +49,6 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
   bool _isBreathingPause = false;
   int _tripletCount = 0;
   int _breathCycleReps = 5;
-  bool _userVoiceDetectedThisRep = false;
   int _countAtSweepStart = 0;
   Timer? _breathingTimer;
   Timer? _initialSettlingTimer;
@@ -94,7 +93,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
       final deps = AppScope.of(context);
       final engine = deps.recognitionEngine;
       if (engine is LocalRecognitionEngine) {
-        engine.isSpeakerOutputActive = isPlaying;
+        engine.setSpeakerOutputActive(isPlaying);
       }
     };
   }
@@ -108,7 +107,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
     }
 
     _countAtSweepStart = deps.sessionController.currentSession?.count ?? 0;
-    _userVoiceDetectedThisRep = false;
+    _tripletCount++; // Advance to current step in the breathing cycle (e.g. 1 out of 5)
     final wordCount = ArabicNormalizer.tokenize(dhikr.arabic).length;
     _sweepController.duration = _pacingSpeed.durationForWordCount(wordCount);
 
@@ -124,6 +123,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
         break;
     }
 
+    setState(() {}); // Updates cycle dots to show current active rep
     _sweepController.forward(from: 0.0);
   }
 
@@ -136,27 +136,14 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
     }
 
     final currentCount = deps.sessionController.currentSession?.count ?? 0;
-    final alreadyIncrementedByAsr = currentCount > _countAtSweepStart;
+    final countIncrementedDuringSweep = currentCount > _countAtSweepStart;
 
-    if (alreadyIncrementedByAsr) {
-      // Clean ASR / ARe already incremented count
+    if (countIncrementedDuringSweep) {
+      // Clean ASR / ARe recognition engine incremented count
       if (_audioGuideMode == AudioGuideMode.haptic) {
         HapticFeedback.mediumImpact();
       }
-    } else if (_userVoiceDetectedThisRep) {
-      // Verified human recitation confirmed during this sweep window
-      deps.sessionController.incrementManual();
-      if (_audioGuideMode == AudioGuideMode.haptic) {
-        HapticFeedback.mediumImpact();
-      }
-    } else {
-      // Silent sweep: User did not speak; count holds
     }
-
-    _userVoiceDetectedThisRep = false;
-
-    // Advance predictable pacing cycle step
-    _tripletCount++;
 
     // Check breathing cadence: pause every _breathCycleReps dhikr
     if (_tripletCount >= _breathCycleReps) {
@@ -164,14 +151,13 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
       setState(() {
         _isBreathingPause = true;
       });
-      // Ensure all speech audio & guide sounds stop completely during breathing pause
-      _speechGuideService.stop();
+      // Do NOT interrupt the voice if it is finishing its recitation naturally!
       if (_audioGuideMode == AudioGuideMode.haptic) {
         _triggerBreathingHapticPattern();
       }
 
       _breathingTimer?.cancel();
-      _breathingTimer = Timer(const Duration(milliseconds: 1800), () {
+      _breathingTimer = Timer(const Duration(milliseconds: 3200), () {
         if (!mounted) return;
         setState(() {
           _isBreathingPause = false;
@@ -181,7 +167,6 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
       });
     } else {
       // Brief inter-repetition pacing gap (~220ms)
-      setState(() {}); // refresh cycle dots
       _breathingTimer?.cancel();
       _breathingTimer = Timer(const Duration(milliseconds: 220), () {
         if (!mounted) return;
@@ -290,19 +275,6 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
           if (mounted) {
             setState(() {
               _isSpeaking = diag.isSpeaking;
-              // Transient & clap shield: Only accept verified voiced speech or valid phrase matches.
-              // Impulsive acoustic transients (< 320ms, claps, taps) do NOT validate voice presence.
-              // Hardware AEC eliminates speaker echo while preserving the user's near-end recitation.
-              final isVerifiedSpeech =
-                  diag.isVoiceVerified ||
-                  (diag.asrCount != null && diag.asrCount! > 0) ||
-                  (diag.areCount != null &&
-                      diag.areCount! > 0 &&
-                      (diag.confidence ?? 0.0) >= 0.5);
-
-              if (isVerifiedSpeech) {
-                _userVoiceDetectedThisRep = true;
-              }
               if (diag.hasTranscript) {
                 _recentDiagnostics.insert(0, diag);
                 if (_recentDiagnostics.length > 10) {
@@ -556,8 +528,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                               builder: (context, _) {
                                 return RecitationLetterSweep(
                                   arabicText: dhikr.arabic,
-                                  isSpeaking: isListening &&
-                                      (_isSpeaking || _userVoiceDetectedThisRep),
+                                  isSpeaking: isListening && _isSpeaking,
                                   repetitionCount: session.count,
                                   pacingSpeed: _pacingSpeed,
                                   isBreathingPause: _isBreathingPause,
@@ -778,36 +749,41 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                       color: colorScheme.onSurface,
                     ),
                   ),
-                  const Spacer(),
                   if (!_isSettingsExpanded) ...[
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        margin: const EdgeInsets.only(right: 6),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: colorScheme.outlineVariant
-                                .withValues(alpha: 0.4),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
                           ),
-                        ),
-                        child: Text(
-                          '${_pacingSpeed.label} · ${_audioGuideMode.label} · Every $_breathCycleReps',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurfaceVariant,
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant
+                                  .withValues(alpha: 0.4),
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          child: Text(
+                            '${_pacingSpeed.label} · ${_audioGuideMode.label} · Every $_breathCycleReps',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ),
+                  ] else ...[
+                    const Spacer(),
                   ],
                   Icon(
                     _isSettingsExpanded
@@ -1244,7 +1220,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                             const SizedBox(height: 6),
                             _buildEngineDetailRow(
                               label: 'Wave',
-                              detail: 'Acoustic envelope & rhythm',
+                              detail: 'Acoustic waveform & valleys',
                               count: latest.areCount ?? latest.newOccurrences,
                               colorScheme: colorScheme,
                               extraNote: latest.confidence != null
@@ -1256,7 +1232,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                                 !latest.rawTranscript!.startsWith('[')) ...[
                               const SizedBox(height: 4),
                               _buildEngineDetailRow(
-                                label: 'ASR',
+                                label: 'Text',
                                 detail: latest.rawTranscript!,
                                 count: latest.asrCount!,
                                 colorScheme: colorScheme,
@@ -1266,41 +1242,19 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                             const SizedBox(height: 4),
                             _buildEngineDetailRow(
                               label: 'Guard',
-                              detail: latest.isVoiceVerified
-                                  ? 'Voiced speech verified'
-                                  : (latest.fusionReason?.contains('Transient') ?? false)
-                                      ? 'Transient shielded (<200ms)'
-                                      : 'Noise / unverified',
+                              detail: (latest.fusionReason?.contains('AEC') ?? false)
+                                  ? 'AEC speaker feedback suppressed'
+                                  : latest.isVoiceVerified
+                                      ? 'Voiced speech verified'
+                                      : (latest.fusionReason?.contains('Transient') ?? false)
+                                          ? 'Transient shielded (<200ms)'
+                                          : 'Noise / unverified',
                               count: 0,
                               colorScheme: colorScheme,
                               hideCount: true,
-                              extraNote: latest.isVoiceVerified ? '✓ Valid' : '✗ Blocked',
-                            ),
-                            const SizedBox(height: 4),
-                            _buildEngineDetailRow(
-                              label: 'Pacing',
-                              detail: '${_pacingSpeed.label} mode',
-                              count: 0,
-                              colorScheme: colorScheme,
-                              hideCount: true,
-                              extraNote: '${_pacingSpeed.wordDurationMs}ms/word',
-                            ),
-                            const SizedBox(height: 4),
-                            _buildEngineDetailRow(
-                              label: 'Audio',
-                              detail: '${_audioGuideMode.label} mode',
-                              count: 0,
-                              colorScheme: colorScheme,
-                              hideCount: true,
-                            ),
-                            const SizedBox(height: 4),
-                            _buildEngineDetailRow(
-                              label: 'Breath',
-                              detail: 'Every $_breathCycleReps adhkar',
-                              count: 0,
-                              colorScheme: colorScheme,
-                              hideCount: true,
-                              extraNote: 'Step $_tripletCount of $_breathCycleReps',
+                              extraNote: latest.isVoiceVerified
+                                  ? '✓ Valid'
+                                  : '✗ Blocked',
                             ),
                             Divider(
                               height: 14,
@@ -1415,7 +1369,41 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
         ? '${((latest.confidence!) * 100).toStringAsFixed(0)}%'
         : '';
 
-    if (latest.isCounted) {
+    if (latest.fusionReason?.contains('AEC') ?? false) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.blue.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
+        ),
+        child: const Text(
+          '🛡 AEC Muted',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.blue,
+          ),
+        ),
+      );
+    } else if (latest.fusionReason?.contains('Transient') ?? false) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+        ),
+        child: const Text(
+          '🛡 Noise Shielded',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.orange,
+          ),
+        ),
+      );
+    } else if (latest.isCounted) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
