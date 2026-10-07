@@ -1,8 +1,8 @@
-# Contributing to DhikrFlow
+# Contributing to DhikrPulse
 
-First off, thank you for considering contributing to DhikrFlow (ذِكْر فْلُو)! 
+First off, thank you for considering contributing to DhikrPulse (ذِكْر بَلْس)! 
 
-DhikrFlow is an open-source, 100% offline, privacy-first companion for hands-free remembrance of Allah. To preserve the integrity and mission of the application, all contributions must respect our core tenets.
+DhikrPulse is an open-source, 100% offline, privacy-first companion for hands-free remembrance of Allah. To preserve the integrity and mission of the application, all contributions must respect our core tenets.
 
 ---
 
@@ -21,8 +21,8 @@ Before submitting a feature or pull request, please review these essential const
 
 1. **Fork and clone the repository:**
    ```bash
-   git clone https://github.com/your-username/dhikrflow.git
-   cd dhikrflow
+   git clone https://github.com/your-username/dhikrpulse.git
+   cd dhikrpulse
    ```
 
 2. **Install Flutter dependencies:**
@@ -53,4 +53,4 @@ Before submitting a feature or pull request, please review these essential const
 3. Ensure all tests pass (`flutter test`).
 4. Push to your fork and submit a Pull Request.
 
-Thank you for helping make DhikrFlow beneficial for everyone!
+Thank you for helping make DhikrPulse beneficial for everyone!

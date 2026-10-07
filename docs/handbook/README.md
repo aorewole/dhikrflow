@@ -1,4 +1,4 @@
-# Dhikr Counter Project Compendium & Knowledge Archive
+# DhikrPulse Project Compendium & Knowledge Archive
 
 > **A 100% Offline, Privacy-First, Hands-Free Intelligent Dhikr Companion for iOS & Android.**
 
@@ -6,7 +6,7 @@
 
 ## Welcome to the Project Compendium
 
-This directory contains the definitive, comprehensive documentation of the **Dhikr Counter** application — from its foundational product philosophy to its deep mathematical audio engineering, its journey through neural speech models and eventual decoupling, and user guides for both general readers and systems engineers.
+This directory contains the definitive, comprehensive documentation of the **DhikrPulse (ذِكْر بَلْس)** application — from its foundational product philosophy to its deep mathematical audio engineering, its journey through neural speech models and eventual decoupling, and user guides for both general readers and systems engineers.
 
 ```
 docs/handbook/

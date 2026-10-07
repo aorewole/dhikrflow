@@ -12,7 +12,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Onboarding / Tutorial screen content
-    expect(find.text('Welcome to DhikrFlow'), findsOneWidget);
+    expect(find.text('Welcome to DhikrPulse'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
 

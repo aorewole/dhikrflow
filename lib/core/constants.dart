@@ -1,6 +1,6 @@
 /// Core application constants and configuration.
 class AppConstants {
-  static const String appName = 'DhikrFlow';
+  static const String appName = 'DhikrPulse';
   static const String appTagline = 'Rhythmic, hands-free offline remembrance';
 
   // Session limits and defaults

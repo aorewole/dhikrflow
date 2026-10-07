@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_scope.dart';
 import '../home/home_screen.dart';
 
-/// Interactive onboarding & tutorial carousel for DhikrFlow.
+/// Interactive onboarding & tutorial carousel for DhikrPulse.
 class OnboardingScreen extends StatefulWidget {
   final bool isRevisit;
 
@@ -21,7 +21,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _TutorialSlide(
       icon: Icons.graphic_eq_rounded,
       badgeText: 'HANDS-FREE RECITATION',
-      title: 'Welcome to DhikrFlow',
+      title: 'Welcome to DhikrPulse',
       subtitle:
           'A serene, hands-free companion for sacred remembrance. Set your phone down, recite naturally, and let the app count your adhkar without touching the screen.',
       details: [
@@ -35,7 +35,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       badgeText: 'PACING & BREATH CADENCE',
       title: 'Rhythmic Recitation & Breath',
       subtitle:
-          'Never rush or lose breath during long litanies. DhikrFlow provides measured visual pacing and automatic breathing pauses.',
+          'Never rush or lose breath during long litanies. DhikrPulse provides measured visual pacing and automatic breathing pauses.',
       details: [
         'Right-to-Left letter sweep guides your natural tempo',
         'Slow, Medium, and Fast speed presets',

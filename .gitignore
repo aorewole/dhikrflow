@@ -19,7 +19,10 @@ scratch/
 *.wav
 *.mp4
 
-# IntelliJ related
+# Internal Agent & Dev configs
+AGENTS.md
+START_HERE.md
+
 *.iml
 *.ipr
 *.iws

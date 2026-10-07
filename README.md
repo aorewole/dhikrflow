@@ -1,4 +1,4 @@
-# DhikrFlow (ذِكْر فْلُو)
+# DhikrPulse (ذِكْر بَلْس)
 
 A free, 100% offline, privacy-first, hands-free Arabic dhikr counter built with Flutter for iOS, Android, and Desktop.
 
@@ -13,7 +13,7 @@ A free, 100% offline, privacy-first, hands-free Arabic dhikr counter built with 
 
 **Select Dhikr → Start → Recite naturally → Count repetitions automatically.**
 
-DhikrFlow is **not** a voice assistant and does **not** rely on cloud services. It is an intentional, privacy-respecting spiritual companion designed for effortless hands-free remembrance of Allah.
+DhikrPulse is **not** a voice assistant and does **not** rely on cloud services. It is an intentional, privacy-respecting spiritual companion designed for effortless hands-free remembrance of Allah.
 
 ---
 
@@ -73,7 +73,7 @@ Acoustic Fusion Gate ──► DhikrCountEvent ──► SessionController ─�
 
 ## 📱 Releases & APK Installation
 
-Download pre-compiled release APKs from the [GitHub Releases](https://github.com/aorewole/dhikrflow/releases) page:
+Download pre-compiled release APKs from the [GitHub Releases](https://github.com/aorewole/dhikrpulse/releases) page:
 
 * **ARM64 (64-bit)**: `app-arm64-v8a-release.apk` (Recommended for modern Android phones)
 * **ARMv7 (32-bit)**: `app-armeabi-v7a-release.apk` (For older 32-bit devices)

@@ -126,7 +126,7 @@ class _HomeDashboardViewState extends State<_HomeDashboardView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DhikrFlow'),
+        title: const Text('DhikrPulse'),
         actions: [
           IconButton(
             tooltip: 'App Tour & Guide',
