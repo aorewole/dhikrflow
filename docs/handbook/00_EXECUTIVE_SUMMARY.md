@@ -1,12 +1,12 @@
 # 00. Executive & Non-Technical Summary
 
-## 1. What is the Dhikr Counter?
+## 1. What is DhikrPulse?
 
-The **Dhikr Counter** is an intelligent, hands-free mobile companion built for Muslims to perform their daily *adhkar* (words of remembrance and praise of God) without needing to manually click beads, tap their phone screen, or look down at a display while reciting.
+The **DhikrPulse (ذِكْر بَلْس)** app is an intelligent, hands-free mobile companion built for Muslims to perform their daily *adhkar* (words of remembrance and praise of God) without needing to manually click beads, tap their phone screen, or look down at a display while reciting.
 
 Traditional digital tasbih counters force the user to tap a button every time they repeat a phrase. This breaks focus (*khushū‘*), requires holding the phone constantly, and can feel mechanical. 
 
-The Dhikr Counter allows you to set your phone on a table, stand in prayer, walk, or sit calmly, select your dhikr, and begin reciting. The phone listens directly to your voice and advances the counter automatically as you speak.
+DhikrPulse allows you to set your phone on a table, stand in prayer, walk, or sit calmly, select your dhikr, and begin reciting. The phone listens directly to your voice and advances the counter automatically as you speak.
 
 ---
 

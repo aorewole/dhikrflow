@@ -101,3 +101,12 @@ Tap the **Pacing & Guide** card to expand or adjust controls at any time:
   * **Guard:** Indicates whether impulsive noises (<200ms) or claps were shielded.
   * **Pacing & Breath:** Real-time state of the cadence engine.
   * **Recent History:** A log of the latest recognized speech events with a **Copy Log** button.
+
+### F. Interactive Spotlight Guided Tour
+* When entering the Active Session screen for the first time, an elegant spotlight overlay highlights key controls:
+  1. **Repetition Counter Ring:** Explains automatic hands-free counting.
+  2. **Tajweed Letter Sweep:** Explains rhythmic Right-to-Left visual pacing.
+  3. **Controls & Pacing Bar:** Shows how to change speed, haptics, and breath cycles.
+  4. **Manual +1 Tap:** Highlights the silent thumb counter.
+* **Instant Replay:** The tour automatically remembers it has been completed, but can be replayed at any time by tapping the **`?` Help button** in the top navigation bar or from the Settings screen.
+

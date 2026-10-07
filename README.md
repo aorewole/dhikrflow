@@ -111,10 +111,8 @@ flutter build apk --split-per-abi --release
 
 ## 📜 Documentation Index
 
-* [`docs/handbook/`](./docs/handbook/): Complete architectural handbook, hurdles, and technical summaries
-* [`JOURNEY_FROM_IDEA_TO_DHIKR_SPEECH_MODEL.md`](./JOURNEY_FROM_IDEA_TO_DHIKR_SPEECH_MODEL.md): Historical evolution and acoustic modeling logs
-* [`dhikr_ai_training/`](./dhikr_ai_training/): On-device acoustic model training guides and dataset pipelines
-* [`AGENTS.md`](./AGENTS.md): Core product rules and non-negotiable privacy guidelines
+* [`THE_STORY_OF_DHIKRPULSE.md`](./THE_STORY_OF_DHIKRPULSE.md): The full founder chronicle — from cloud doubts and the neural AI trap to pure mathematical signal processing
+* [`docs/handbook/`](./docs/handbook/): Complete architectural handbook, hurdles, and technical deep-dives
 
 ---
 

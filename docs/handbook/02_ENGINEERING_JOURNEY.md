@@ -95,9 +95,48 @@ When the first Android debug APK was compiled, its file size was **350 MB**, far
 3. **Unneeded Neural Model Weights:** The `assets/models/moonshine_arabic/` folder included ~141 MB of ONNX model binaries.
 
 ### The Fix
-1. **Unbundled Heavy Neural Weights:** Because our mathematical waveform engine decoupled the need for local neural ASR, we commented out model asset bundling from `pubspec.yaml`.
+1. **Unbundled Heavy Neural Weights:** Because our mathematical waveform engine decoupled the need for local neural ASR, we removed heavy neural models from assets.
 2. **Ahead-of-Time (AOT) Tree-Shaking:** Compiled with `--release`, tree-shaking icons from 1.6 MB down to 9 KB (99.5% reduction) and compiling Dart to lean machine code.
 3. **Split Per ABI (`--split-per-abi`):** Split the release build into targeted packages:
-   * **`app-arm64-v8a-release.apk`:** **44.7 MB** (Modern 64-bit devices)
-   * **`app-armeabi-v7a-release.apk`:** **33.7 MB** (Older 32-bit devices)
+   * **`app-arm64-v8a-release.apk`:** **45.9 MB** (Modern 64-bit devices)
+   * **`app-armeabi-v7a-release.apk`:** **34.9 MB** (Older 32-bit devices)
    * **Result:** **88% reduction in total application footprint.**
+
+---
+
+## Hurdle 6: Audio Feedback & Echo Loop in Voice Mode (Hardware AEC)
+
+### The Challenge
+When users enabled the spoken audio guide, the phone's speaker outputted the dhikr pronunciation. However, the device's microphone picked up the speaker's own sound, causing the counting engine to increment even when the user said nothing.
+
+### The Physics & Systems Solution
+Rather than introducing complex software filter delays or blocking the microphone while speaking (which would prevent users from reciting in unison with the guide), we leveraged mobile hardware **Acoustic Echo Cancellation (AEC)**:
+1. **iOS Audio Session Configuration:** We configured the iOS audio session to `AVAudioSessionCategoryPlayAndRecord` with `AVAudioSessionModeVoiceChat`. This mode activates Apple's dedicated hardware echo cancellation DSP designed for FaceTime and VoIP calls.
+2. **Android Audio Record Source:** On Android, we routed input through `AudioSource.VOICE_COMMUNICATION`. Android automatically synchronizes speaker output buffers with microphone input and subtracts the speaker echo at the hardware DSP layer.
+3. **Result:** The user can recite comfortably in unison with the audio guide, and the microphone only captures the user's voice without speaker bleeding.
+
+---
+
+## Hurdle 7: Distinguishing Counting Haptics from Breathing Haptics
+
+### The Challenge
+When reciting with the phone in a pocket, users rely purely on tactile vibration. Initially, the counter used standard medium vibrations for counting, but also triggered standard vibrations when the breath pause appeared. Users could not distinguish whether a repetition was counted or if a breathing pause had begun.
+
+### The Fix
+We designed a distinct **3-Stage Decrescendo Tactile Breath Wave**:
+* Instead of a single blunt pulse, the breath pause triggers a cascading 1.8-second wave:
+  $$\text{Heavy} \longrightarrow \text{Medium} \longrightarrow \text{Light}$$
+* This physically communicates an exhale/inhale rhythm to the palm or pocket, making it impossible to confuse with a single crisp count click.
+
+---
+
+## Hurdle 8: iOS CoreText Shadda-Fatḥa Superimposed Glyph Glitch
+
+### The Challenge
+On iOS devices, the sacred name of Allah (*Lafdh al-Jalālah*) was displaying a weird visual anomaly: a floating, superimposed fatḥa rendered directly on top of the shadda at the end of phrases, causing the text to look malformed and confusing the TTS engine.
+
+### The Fix
+1. In `DhikrRepository`, we migrated all composite string representations to the classical Uthmani Quranic Unicode standard: `ٱللّٰه` (combining dagger alif with classical shadda).
+2. We enforced strict terminal **Waqf** (pausal sukūn), completely eliminating trailing accusative vowels.
+3. The sacred phrases render crisply across both iOS Retina screens and Android AMOLED displays.
+
