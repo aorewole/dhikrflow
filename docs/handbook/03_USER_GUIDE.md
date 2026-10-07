@@ -86,8 +86,8 @@ Tap the **Pacing & Guide** card to expand or adjust controls at any time:
    * **Mute:** Completely silent operation with visual guidance only.
    * **Voice:** Native Arabic speech synthesis accompanies each repetition to teach pacing and pronunciation.
 3. **Breath Cadence Selector:**
-   * Adjust how many repetitions to complete before taking a breath (from **1 to 10**, default: **3**).
-   * After the configured count, the app automatically pauses for 1.8 seconds, displaying: `3 / 3 • Take a breath... 🌿` with a gentle inhale reminder.
+   * Adjust how many repetitions to complete before taking a breath (from **1 to 10**, default: **5**).
+   * After the configured count, the app automatically pauses for 1.8 seconds, displaying: `5 / 5 • Take a breath... 🌿` with a gentle inhale reminder.
 
 ### D. Manual +1 Tap Fallback Bar
 * A large, tactile button at the bottom of the screen: **Manual +1 Tap**.
