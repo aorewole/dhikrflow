@@ -187,7 +187,7 @@ The user should be allowed to repeat the same dhikr naturally and quickly.
 
 Use speech evidence, transcript alignment, token timing when available, or another robust event-identification mechanism instead of assuming a repetition boundary is always a fixed number of milliseconds.
 
-## 11. Confidence policy
+## 11. Confidence policy & Bayesian Cadence Prior
 
 The system must support at minimum:
 
@@ -197,9 +197,17 @@ IGNORE
 UNCERTAIN
 ```
 
-For MVP, uncertain candidates should generally not increment the automatic counter.
+For MVP, uncertain candidates do not increment the automatic counter unless rescued by rhythmic cadence.
 
-Expose recognition diagnostics in developer/test builds so thresholds can be tuned without exposing technical clutter to normal users.
+### Bayesian Cadence Prior (Temporal Rhythm Matching)
+
+In Selected-Dhikr Mode, reciters naturally lock into a predictable rhythmic pace (cadence) during cyclical tasbih (e.g. 900ms – 1300ms per repetition). The system tracks the rolling median duration of confirmed recitations:
+
+1. **Tier 1 (High Acoustic Match $\ge$ acceptThreshold)**: Accepts unconditionally and updates the `RecitationCadenceTracker`.
+2. **Tier 2 (Cadence-Assisted Near-Miss Rescue)**: If acoustic similarity is in the near-match band (`uncertainThreshold` $\le$ score $<$ `acceptThreshold`) AND the speech segment duration matches the user's established cadence window ($\pm 35\%$), a cadence bonus (+0.18) is applied to promote the candidate to **ACCEPT (+1)**.
+3. **Tier 3 (Noise / Unrelated speech $<$ uncertainThreshold)**: Rejected regardless of duration.
+
+Expose recognition diagnostics in developer/test builds so thresholds and pace metrics can be inspected without exposing technical clutter to normal users.
 
 ## 12. Count-event semantics
 

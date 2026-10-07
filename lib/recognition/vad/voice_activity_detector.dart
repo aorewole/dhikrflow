@@ -14,13 +14,20 @@ class VoiceActivityDetector {
   double speechThresholdDbfs;
 
   /// Time to bridge intra-phrase silence (e.g. Arabic glottal stops and consonants).
-  final Duration hangoverDuration;
+  Duration hangoverDuration;
 
   /// Minimum speech length to reject short transient noise (clicks, taps).
-  final Duration minSpeechDuration;
+  Duration minSpeechDuration;
 
   /// Maximum speech length before concluding a segment to prevent unbounded memory growth.
-  final Duration maxSpeechDuration;
+  Duration maxSpeechDuration;
+
+  /// Optional target accumulated duration during continuous speech before
+  /// seeking an acoustic energy valley to slice a clean segment without silence.
+  Duration? continuousSpeechSliceDuration;
+
+  /// Lookback window in milliseconds to inspect for an energy valley.
+  Duration continuousValleySearchWindow;
 
   /// Whether to adapt the threshold dynamically relative to background ambient noise.
   final bool adaptiveNoiseTracking;
@@ -41,6 +48,8 @@ class VoiceActivityDetector {
     this.hangoverDuration = const Duration(milliseconds: 280),
     this.minSpeechDuration = const Duration(milliseconds: 80),
     this.maxSpeechDuration = const Duration(seconds: 7),
+    this.continuousSpeechSliceDuration,
+    this.continuousValleySearchWindow = const Duration(milliseconds: 900),
     this.adaptiveNoiseTracking = true,
   });
 
@@ -72,10 +81,14 @@ class VoiceActivityDetector {
       }
       _currentSegmentChunks.add(chunk);
 
-      // Phase 11 Optimization: Limit segment duration to avoid unbounded memory accumulation
-      if (_speechStartTime != null &&
-          now.difference(_speechStartTime!) >= maxSpeechDuration) {
-        _concludeSpeechSegment(now);
+      if (_speechStartTime != null) {
+        final currentDuration = now.difference(_speechStartTime!);
+        if (continuousSpeechSliceDuration != null &&
+            currentDuration >= continuousSpeechSliceDuration!) {
+          _sliceContinuousSpeechAtValley(now);
+        } else if (currentDuration >= maxSpeechDuration) {
+          _concludeSpeechSegment(now);
+        }
       }
     } else {
       // Energy below threshold: check hangover period
@@ -84,6 +97,15 @@ class VoiceActivityDetector {
         if (silenceDuration <= hangoverDuration) {
           // Bridge intra-phrase pause: continue buffering
           _currentSegmentChunks.add(chunk);
+          if (_speechStartTime != null) {
+            final currentDuration = now.difference(_speechStartTime!);
+            if (continuousSpeechSliceDuration != null &&
+                currentDuration >= continuousSpeechSliceDuration!) {
+              _sliceContinuousSpeechAtValley(now);
+            } else if (currentDuration >= maxSpeechDuration) {
+              _concludeSpeechSegment(now);
+            }
+          }
         } else {
           // Hangover expired: finalize speech segment
           _concludeSpeechSegment(now);
@@ -104,6 +126,71 @@ class VoiceActivityDetector {
         timestamp: now,
       ),
     );
+  }
+
+  /// Slices an ongoing continuous speech buffer at the deepest acoustic energy valley
+  /// within the [continuousValleySearchWindow] lookback window.
+  ///
+  /// Rather than terminating speech recognition or cutting mid-word at an arbitrary timer,
+  /// this partitions the accumulated audio at the natural boundary between repetitions,
+  /// emits the completed segment to downstream recognizers, and seamlessly carries over
+  /// the remaining audio into the next rolling segment while keeping [isSpeaking] true.
+  void _sliceContinuousSpeechAtValley(DateTime now) {
+    if (_speechStartTime == null || _currentSegmentChunks.isEmpty) return;
+
+    final currentDuration = now.difference(_speechStartTime!);
+    final searchWindowStart = now.subtract(continuousValleySearchWindow);
+
+    int bestSplitIndex = -1;
+    double lowestRms = double.infinity;
+
+    // Search from chunk 0 up to the second-to-last chunk to guarantee at least
+    // one chunk remains for the continuing segment.
+    for (int i = 0; i < _currentSegmentChunks.length - 1; i++) {
+      final c = _currentSegmentChunks[i];
+      if (c.timestamp.isAfter(searchWindowStart) ||
+          c.timestamp.isAtSameMomentAs(searchWindowStart)) {
+        final rms = c.computeRms();
+        if (rms < lowestRms) {
+          lowestRms = rms;
+          bestSplitIndex = i;
+        }
+      }
+    }
+
+    // If no candidate was found in the search window (e.g. very large chunks),
+    // and currentDuration >= maxSpeechDuration, fall back to concluding segment.
+    if (bestSplitIndex <= 0) {
+      if (currentDuration >= maxSpeechDuration) {
+        _concludeSpeechSegment(now);
+      }
+      return;
+    }
+
+    final segmentChunks = _currentSegmentChunks.sublist(0, bestSplitIndex + 1);
+    final remainingChunks = _currentSegmentChunks.sublist(bestSplitIndex + 1);
+
+    final segmentStartTime = _speechStartTime!;
+    final lastChunk = segmentChunks.last;
+    final segmentEndTime = lastChunk.timestamp.add(lastChunk.duration);
+
+    if (segmentEndTime.difference(segmentStartTime) >= minSpeechDuration) {
+      _segmentController.add(
+        SpeechSegment(
+          chunks: List.unmodifiable(segmentChunks),
+          startTime: segmentStartTime,
+          endTime: segmentEndTime,
+        ),
+      );
+    }
+
+    // Seamless handoff: retain the remaining chunks for the next continuous segment.
+    _currentSegmentChunks.clear();
+    _currentSegmentChunks.addAll(remainingChunks);
+    _speechStartTime =
+        remainingChunks.isNotEmpty ? remainingChunks.first.timestamp : now;
+    _lastSpeechTime = now;
+    _isSpeaking = true;
   }
 
   void _concludeSpeechSegment(DateTime now) {

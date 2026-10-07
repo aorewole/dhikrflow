@@ -57,11 +57,17 @@ class AppDependencies {
     }
 
     final docsDir = await getApplicationDocumentsDirectory();
+    final tarteelTinyDir = '${docsDir.path}/models/tarteel_tiny_quran';
     final moonshineDir = '${docsDir.path}/models/moonshine_arabic';
     final baseDir = '${docsDir.path}/models/whisper_base';
     final tinyDir = '${docsDir.path}/models/whisper_tiny';
 
     final SherpaOnnxAsrEngine asrEngine;
+    final tarteelEngine = SherpaOnnxAsrEngine.whisper(
+      encoderPath: '$tarteelTinyDir/tarteel-tiny-encoder.int8.onnx',
+      decoderPath: '$tarteelTinyDir/tarteel-tiny-decoder.int8.onnx',
+      tokensPath: '$tarteelTinyDir/tarteel-tiny-tokens.txt',
+    );
     final moonshineEngine = SherpaOnnxAsrEngine.moonshine(
       encoderPath: '$moonshineDir/encoder_model.ort',
       decoderPath: '$moonshineDir/decoder_model_merged.ort',
@@ -73,40 +79,42 @@ class AppDependencies {
       tokensPath: '$baseDir/base-tokens.txt',
     );
 
+    final tinyEngine = SherpaOnnxAsrEngine.whisper(
+      encoderPath: '$tinyDir/tiny-encoder.int8.onnx',
+      decoderPath: '$tinyDir/tiny-decoder.int8.onnx',
+      tokensPath: '$tinyDir/tiny-tokens.txt',
+    );
+
     if (moonshineEngine.areModelFilesPresent) {
       asrEngine = moonshineEngine;
-      debugPrint('[AppDependencies] Using dedicated offline Moonshine Arabic model.');
+      debugPrint('[AppDependencies] Using dedicated Moonshine Arabic model.');
+    } else if (tarteelEngine.areModelFilesPresent) {
+      asrEngine = tarteelEngine;
+      debugPrint('[AppDependencies] Using fine-tuned Tarteel Tiny Quran model.');
     } else if (baseEngine.areModelFilesPresent) {
       asrEngine = baseEngine;
-      debugPrint('[AppDependencies] Using high-accuracy Whisper Base Arabic model.');
+      debugPrint('[AppDependencies] Using Whisper Base model.');
+    } else if (tinyEngine.areModelFilesPresent) {
+      asrEngine = tinyEngine;
+      debugPrint('[AppDependencies] Using Whisper Tiny model.');
     } else {
-      asrEngine = SherpaOnnxAsrEngine.whisper(
-        encoderPath: '$tinyDir/tiny-encoder.int8.onnx',
-        decoderPath: '$tinyDir/tiny-decoder.int8.onnx',
-        tokensPath: '$tinyDir/tiny-tokens.txt',
-      );
-      debugPrint('[AppDependencies] Using lightweight Whisper Tiny model.');
+      asrEngine = moonshineEngine;
+      debugPrint('[AppDependencies] Using fallback Moonshine Arabic model.');
     }
 
     final settingsController = SettingsController(repository: settingsRepo);
     await settingsController.loadSettings();
 
     final RecognitionEngine recognitionEngine;
-    if (asrEngine.areModelFilesPresent) {
-      debugPrint('[AppDependencies] Models present. Starting LocalRecognitionEngine with offline ASR.');
-      final localEngine = LocalRecognitionEngine(
-        pipeline: pipeline,
-        asrEngine: asrEngine,
-        config: settingsController.recognitionConfig,
-      );
-      settingsController.addListener(() {
-        localEngine.updateConfig(settingsController.recognitionConfig);
-      });
-      recognitionEngine = localEngine;
-    } else {
-      debugPrint('[AppDependencies] Model files not found. Using fallback recognition engine.');
-      recognitionEngine = MockRecognitionEngine(pipeline: pipeline);
-    }
+    final localEngine = LocalRecognitionEngine(
+      pipeline: pipeline,
+      asrEngine: asrEngine.areModelFilesPresent ? asrEngine : null,
+      config: settingsController.recognitionConfig,
+    );
+    settingsController.addListener(() {
+      localEngine.updateConfig(settingsController.recognitionConfig);
+    });
+    recognitionEngine = localEngine;
 
     final backgroundListeningService = DefaultBackgroundListeningService(
       initialOptIn: settingsController.backgroundListeningOptIn,

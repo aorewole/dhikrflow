@@ -4,8 +4,52 @@ import '../../app/app_scope.dart';
 import '../../domain/models/dhikr_session.dart';
 
 /// Screen listing recorded past dhikr sessions and aggregate counts.
-class HistoryScreen extends StatelessWidget {
+///
+/// Listens to [SessionController] and re-fetches history whenever a session
+/// transitions from active → completed (no app restart required).
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  // Incrementing this forces the FutureBuilder to re-execute getAllSessions().
+  int _fetchKey = 0;
+
+  // Tracks whether we had an active session last time SessionController notified.
+  // When it flips from true → false, a session just ended → re-fetch history.
+  bool _hadActiveSession = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Register listener after the first frame so AppScope is available.
+    final controller = AppScope.of(context).sessionController;
+    controller.removeListener(_onSessionChanged);
+    controller.addListener(_onSessionChanged);
+  }
+
+  @override
+  void dispose() {
+    // Safe: AppScope outlives this widget, so we can still access it here.
+    try {
+      AppScope.of(context).sessionController.removeListener(_onSessionChanged);
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _onSessionChanged() {
+    if (!mounted) return;
+    final hasActive =
+        AppScope.of(context).sessionController.hasActiveSession;
+    // A session just completed: was active, now it's gone.
+    if (_hadActiveSession && !hasActive) {
+      setState(() => _fetchKey++);
+    }
+    _hadActiveSession = hasActive;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +60,7 @@ class HistoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Recitation History')),
       body: FutureBuilder<List<DhikrSession>>(
+        key: ValueKey(_fetchKey),
         future: deps.sessionRepository.getAllSessions(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -71,20 +116,25 @@ class HistoryScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildHistoryStat(
-                      context,
-                      label: 'TOTAL REPETITIONS',
-                      value: '$totalRepetitions',
+                    Expanded(
+                      child: _buildHistoryStat(
+                        context,
+                        label: 'TOTAL REPETITIONS',
+                        value: '$totalRepetitions',
+                      ),
                     ),
                     Container(
                       height: 36,
                       width: 1,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
                       color: colorScheme.outlineVariant,
                     ),
-                    _buildHistoryStat(
-                      context,
-                      label: 'COMPLETED SESSIONS',
-                      value: '${sessions.length}',
+                    Expanded(
+                      child: _buildHistoryStat(
+                        context,
+                        label: 'COMPLETED SESSIONS',
+                        value: '${sessions.length}',
+                      ),
                     ),
                   ],
                 ),
@@ -121,41 +171,49 @@ class HistoryScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (dhikr?.arabic != null && dhikr!.arabic.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 3.0),
+                            child: Text(
+                              dhikr.arabic,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.primary,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         Text(
                           dhikr?.transliteration ?? session.dhikrId,
                           style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          dhikr?.arabic ?? '',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: colorScheme.primary,
-                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                     subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Row(
+                      padding: const EdgeInsets.only(top: 6.0),
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        runSpacing: 2,
                         children: [
                           Text(
                             _formatDate(session.startedAt),
                             style: theme.textTheme.bodySmall,
                           ),
-                          const SizedBox(width: 8),
                           Text('•', style: theme.textTheme.bodySmall),
-                          const SizedBox(width: 8),
                           Text(
                             _formatDuration(session.duration),
                             style: theme.textTheme.bodySmall,
                           ),
                           if (session.target != null) ...[
-                            const SizedBox(width: 8),
                             Text('•', style: theme.textTheme.bodySmall),
-                            const SizedBox(width: 8),
                             Text(
                               'Target: ${session.target}',
                               style: theme.textTheme.bodySmall?.copyWith(
@@ -188,9 +246,11 @@ class HistoryScreen extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           value,
+          textAlign: TextAlign.center,
           style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w700,
             color: theme.colorScheme.primary,
@@ -199,8 +259,11 @@ class HistoryScreen extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.labelSmall?.copyWith(
-            letterSpacing: 1.0,
+            letterSpacing: 0.5,
             color: theme.colorScheme.outline,
           ),
         ),

@@ -45,9 +45,9 @@ class RecordAudioSource implements AudioSource {
       throw StateError('Microphone permission not granted.');
     }
 
-    const sampleRatesToTry = [44100, 48000, 16000];
+    const sampleRatesToTry = [16000, 44100, 48000];
     Stream<Uint8List>? rawStream;
-    int activeSampleRate = 44100;
+    int activeSampleRate = 16000;
 
     for (final rate in sampleRatesToTry) {
       try {
@@ -55,9 +55,9 @@ class RecordAudioSource implements AudioSource {
           encoder: AudioEncoder.pcm16bits,
           sampleRate: rate,
           numChannels: 1,
-          autoGain: false,
-          echoCancel: false,
-          noiseSuppress: false,
+          autoGain: true,
+          echoCancel: true,
+          noiseSuppress: true,
         );
         rawStream = await _recorder.startStream(config);
         activeSampleRate = rate;

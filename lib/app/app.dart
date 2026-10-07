@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/constants.dart';
+import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import 'app_scope.dart';
 import 'theme.dart';
@@ -28,7 +29,9 @@ class DhikrCounterApp extends StatelessWidget {
                 theme: AppTheme.lightTheme,
                 darkTheme: AppTheme.darkTheme,
                 themeMode: deps.settingsController.themeMode,
-                home: const OnboardingScreen(),
+                home: deps.settingsController.hasCompletedOnboarding
+                    ? const HomeScreen()
+                    : const OnboardingScreen(),
               );
             },
           );

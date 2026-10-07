@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../core/constants.dart';
-import '../../domain/recognition/recognition_config.dart';
+import '../onboarding/onboarding_screen.dart';
 
 /// Settings screen for configuring haptics, theme, and reviewing privacy guarantees.
 class SettingsScreen extends StatelessWidget {
@@ -208,114 +208,7 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               Text(
-                'Recognition Sensitivity & Calibration',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Calibration Preset',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Adjusts confidence thresholds and speech sensitivity to match your environment.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(
-                            value: 'sensitive',
-                            label: Text('Sensitive'),
-                          ),
-                          ButtonSegment(
-                            value: 'balanced',
-                            label: Text('Balanced'),
-                          ),
-                          ButtonSegment(value: 'strict', label: Text('Strict')),
-                        ],
-                        selected: {
-                          if (settings.recognitionConfig.acceptThreshold <=
-                              0.80)
-                            'sensitive'
-                          else if (settings.recognitionConfig.acceptThreshold >=
-                              0.90)
-                            'strict'
-                          else
-                            'balanced',
-                        },
-                        onSelectionChanged: (selected) {
-                          final choice = selected.first;
-                          if (choice == 'sensitive') {
-                            settings.setRecognitionConfig(
-                              RecognitionConfig.sensitive,
-                            );
-                          } else if (choice == 'strict') {
-                            settings.setRecognitionConfig(
-                              RecognitionConfig.strict,
-                            );
-                          } else {
-                            settings.setRecognitionConfig(
-                              RecognitionConfig.balanced,
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest.withValues(
-                            alpha: 0.4,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Accept Confidence: ${(settings.recognitionConfig.acceptThreshold * 100).toInt()}%',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              'VAD Floor: ${settings.recognitionConfig.speechThresholdDbfs.toInt()} dBFS',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              Text(
-                'Development Diagnostics',
+                'Help & Guide',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -326,21 +219,62 @@ class SettingsScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.memory_rounded),
-                      title: const Text('Recognition Engine'),
-                      subtitle: const Text(
-                        'Phase 1: Deterministic Mock Engine\nPhase 4: sherpa-onnx Local ASR',
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.help_outline_rounded,
+                          color: colorScheme.primary,
+                          size: 20,
+                        ),
                       ),
+                      title: const Text('App Tour & Tutorial'),
+                      subtitle: const Text(
+                        'Revisit the overall introduction to hands-free dhikr and library.',
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const OnboardingScreen(isRevisit: true),
+                          ),
+                        );
+                      },
                     ),
-                    const Divider(height: 1),
-                    SwitchListTile(
-                      title: const Text('Auto-Simulate Recitation'),
-                      subtitle: const Text(
-                        'Simulate voice repetition every 4 seconds in development sessions',
+                    const Divider(height: 1, indent: 56),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD4AF37).withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.filter_vintage_rounded,
+                          color: Color(0xFFD4AF37),
+                          size: 20,
+                        ),
                       ),
-                      value: settings.autoSimulateVoiceInDebug,
-                      onChanged: (val) {
-                        settings.setAutoSimulateVoiceInDebug(val);
+                      title: const Text('Counting Screen Walkthrough'),
+                      subtitle: const Text(
+                        'Re-enable the spotlight guide on the recitation screen.',
+                      ),
+                      trailing: const Icon(Icons.replay_rounded),
+                      onTap: () async {
+                        await settings.setHasCompletedSessionTutorial(false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Walkthrough re-enabled. It will show next time you start a dhikr session.',
+                              ),
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                        }
                       },
                     ),
                   ],
@@ -350,7 +284,7 @@ class SettingsScreen extends StatelessWidget {
 
               Center(
                 child: Text(
-                  '${AppConstants.appName} v1.0.0 (Phase 1 Build)',
+                  '${AppConstants.appName} v1.0.0 • On-Device & Privacy-First',
                   style: theme.textTheme.bodySmall,
                 ),
               ),

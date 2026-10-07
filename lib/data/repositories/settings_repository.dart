@@ -23,6 +23,10 @@ abstract interface class SettingsRepository {
   Future<void> removeVoiceProfile(String dhikrId);
   Future<bool> getUseVoiceCalibration(String dhikrId);
   Future<void> setUseVoiceCalibration(String dhikrId, bool enabled);
+  Future<bool> getHasCompletedOnboarding();
+  Future<void> setHasCompletedOnboarding(bool completed);
+  Future<bool> getHasCompletedSessionTutorial();
+  Future<void> setHasCompletedSessionTutorial(bool completed);
 }
 
 /// SharedPreferences implementation of [SettingsRepository].
@@ -133,5 +137,25 @@ class SharedPrefsSettingsRepository implements SettingsRepository {
   @override
   Future<void> setUseVoiceCalibration(String dhikrId, bool enabled) async {
     await _prefs.setBool('setting_use_calibration_$dhikrId', enabled);
+  }
+
+  @override
+  Future<bool> getHasCompletedOnboarding() async {
+    return _prefs.getBool('setting_onboarding_completed') ?? false;
+  }
+
+  @override
+  Future<void> setHasCompletedOnboarding(bool completed) async {
+    await _prefs.setBool('setting_onboarding_completed', completed);
+  }
+
+  @override
+  Future<bool> getHasCompletedSessionTutorial() async {
+    return _prefs.getBool('setting_session_tutorial_completed') ?? false;
+  }
+
+  @override
+  Future<void> setHasCompletedSessionTutorial(bool completed) async {
+    await _prefs.setBool('setting_session_tutorial_completed', completed);
   }
 }

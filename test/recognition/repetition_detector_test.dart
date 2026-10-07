@@ -210,4 +210,126 @@ void main() {
       expect(detector.totalAcceptedOccurrences, 2);
     });
   });
+
+  group('Multi-Segment Rolling Accumulator Tests (Subhanallahi wa bihamdihi)', () {
+    const multiTarget = 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ';
+
+    test('Case A: Segment 1 (SubhanAllah) + Segment 2 (wa bihamdihi) -> +1', () {
+      final detector = StreamingRepetitionDetector(targetPhrase: multiTarget);
+      final t0 = DateTime(2026, 1, 1, 12, 0, 0);
+
+      // Segment 1: "سبحان الله" (partial prefix)
+      final seg1 = detector.processSegment('سبحان الله', timestamp: t0);
+      expect(seg1.isEmpty, isTrue, reason: 'Incomplete prefix must not count');
+      expect(detector.pendingPrefixTokens, ['سبحان', 'الله']);
+
+      // Segment 2: "وبحمده" within 800ms
+      final seg2 = detector.processSegment(
+        'وبحمده',
+        timestamp: t0.add(const Duration(milliseconds: 800)),
+      );
+      expect(seg2.length, 1, reason: 'Joined segments must complete the phrase');
+      expect(detector.pendingPrefixTokens.isEmpty, isTrue);
+      expect(detector.totalAcceptedOccurrences, 1);
+    });
+
+    test('Single-segment full recitation -> +1 immediately', () {
+      final detector = StreamingRepetitionDetector(targetPhrase: multiTarget);
+      final seg = detector.processSegment('سبحان الله وبحمده');
+
+      expect(seg.length, 1);
+      expect(detector.pendingPrefixTokens.isEmpty, isTrue);
+      expect(detector.totalAcceptedOccurrences, 1);
+    });
+
+    test('Case C: Prefix restart discards stale partial buffer', () {
+      final detector = StreamingRepetitionDetector(targetPhrase: multiTarget);
+      final t0 = DateTime(2026, 1, 1, 12, 0, 0);
+
+      // Segment 1: "سبحان الله"
+      detector.processSegment('سبحان الله', timestamp: t0);
+      expect(detector.pendingPrefixTokens, ['سبحان', 'الله']);
+
+      // Segment 2: User repeats Segment 1 ("سبحان الله") instead of Segment 2
+      final seg2 = detector.processSegment(
+        'سبحان الله',
+        timestamp: t0.add(const Duration(milliseconds: 600)),
+      );
+      expect(seg2.isEmpty, isTrue);
+      // Stale previous buffer was discarded and replaced with new Segment 1
+      expect(detector.pendingPrefixTokens, ['سبحان', 'الله']);
+      expect(detector.totalAcceptedOccurrences, 0);
+
+      // Segment 3: Now user finishes with "وبحمده"
+      final seg3 = detector.processSegment(
+        'وبحمده',
+        timestamp: t0.add(const Duration(milliseconds: 1200)),
+      );
+      expect(seg3.length, 1);
+      expect(detector.pendingPrefixTokens.isEmpty, isTrue);
+      expect(detector.totalAcceptedOccurrences, 1);
+    });
+
+    test('Case B: Timeout / abandonment discards stale buffer after maxStalenessDuration', () {
+      final detector = StreamingRepetitionDetector(
+        targetPhrase: multiTarget,
+        maxStalenessDuration: const Duration(seconds: 3),
+      );
+      final t0 = DateTime(2026, 1, 1, 12, 0, 0);
+
+      // Segment 1: "سبحان الله"
+      detector.processSegment('سبحان الله', timestamp: t0);
+      expect(detector.pendingPrefixTokens, ['سبحان', 'الله']);
+
+      // Segment 2 arrives after 4 seconds (timeout expired) with "وبحمده"
+      final seg2 = detector.processSegment(
+        'وبحمده',
+        timestamp: t0.add(const Duration(seconds: 4)),
+      );
+      expect(seg2.isEmpty, isTrue, reason: 'Stale prefix must be discarded on timeout');
+      expect(detector.totalAcceptedOccurrences, 0);
+      expect(detector.pendingPrefixTokens.isEmpty, isTrue);
+    });
+
+    test('Case D: Irrelevant / conversational speech discards partial buffer', () {
+      final detector = StreamingRepetitionDetector(targetPhrase: multiTarget);
+      final t0 = DateTime(2026, 1, 1, 12, 0, 0);
+
+      // Segment 1: "سبحان الله"
+      detector.processSegment('سبحان الله', timestamp: t0);
+      expect(detector.pendingPrefixTokens, ['سبحان', 'الله']);
+
+      // Segment 2: Conversational speech "شكرا جزيلا كيف حالك"
+      final seg2 = detector.processSegment(
+        'شكرا جزيلا كيف حالك',
+        timestamp: t0.add(const Duration(milliseconds: 500)),
+      );
+      expect(seg2.isEmpty, isTrue);
+      expect(detector.pendingPrefixTokens.isEmpty, isTrue);
+      expect(detector.totalAcceptedOccurrences, 0);
+    });
+
+    test('Multi-word dhikr with 6 tokens: La hawla wa la quwwata illa billah', () {
+      const hawqala = 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِٱللَّٰهِ';
+      final detector = StreamingRepetitionDetector(targetPhrase: hawqala);
+      final t0 = DateTime(2026, 1, 1, 12, 0, 0);
+
+      // Chunk 1: "لا حول ولا قوة" (4 tokens)
+      final c1 = detector.processSegment(
+        'لا حول ولا قوة',
+        timestamp: t0,
+      );
+      expect(c1.isEmpty, isTrue);
+      expect(detector.pendingPrefixTokens, ['لا', 'حول', 'ولا', 'قوه']);
+
+      // Chunk 2: "إلا بالله" (2 tokens)
+      final c2 = detector.processSegment(
+        'الا بالله',
+        timestamp: t0.add(const Duration(milliseconds: 900)),
+      );
+      expect(c2.length, 1);
+      expect(detector.pendingPrefixTokens.isEmpty, isTrue);
+      expect(detector.totalAcceptedOccurrences, 1);
+    });
+  });
 }

@@ -1,118 +1,123 @@
-# Dhikr Counter (أذكار)
+# DhikrFlow (ذِكْر فْلُو)
 
-A free, privacy-first, offline hands-free dhikr counter built with Flutter for iOS and Android.
+A free, 100% offline, privacy-first, hands-free Arabic dhikr counter built with Flutter for iOS, Android, and Desktop.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](https://opensource.org/licenses/MIT)
+[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android%20%7C%20macOS-0D5C54.svg)](https://flutter.dev)
+[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%7C%20Zero%20Telemetry-2A8B78.svg)](#-non-negotiable-privacy-guarantees)
+[![Tests](https://img.shields.io/badge/Tests-136%20Passed-success.svg)](#-development--testing)
 
 ---
 
 ## 🌟 Mission & User Experience
 
-The primary experience is:
-**Select dhikr → Start → Recite → count repetitions automatically.**
+**Select Dhikr → Start → Recite naturally → Count repetitions automatically.**
 
-The app is **not** a voice assistant and is **not** a cloud transcription service. It is an intentional, privacy-respecting companion for remembrance of Allah (dhikr).
+DhikrFlow is **not** a voice assistant and does **not** rely on cloud services. It is an intentional, privacy-respecting spiritual companion designed for effortless hands-free remembrance of Allah.
 
 ---
 
 ## 🔒 Non-Negotiable Privacy Guarantees
 
-1. **100% Offline (Airplane Mode Ready):** Core functionality operates entirely with no Internet connection. No network permissions are required or requested.
-2. **Zero Cloud Speech APIs:** Speech recognition is executed locally on-device.
-3. **No Microphone Audio Persistence:** Raw microphone audio is held only as transient in-memory PCM buffers during active VAD/ASR processing and is immediately discarded. Never saved to disk, never uploaded.
-4. **Zero Telemetry & Tracking:** No Firebase, no analytics, no crashlytics, no telemetry SDKs, and no advertising networks.
-5. **No Accounts or Logins:** Sessions, preferences, and favorites are stored entirely in local on-device storage.
+1. **100% Offline (Airplane Mode Ready):** Core functionality operates entirely with zero Internet connection. No network permissions are requested.
+2. **Zero Cloud Speech APIs:** Speech recognition and DSP analysis execute entirely on-device.
+3. **No Microphone Audio Persistence:** Raw microphone audio is held only as transient in-memory PCM buffers during active processing and is immediately discarded. Never saved to disk, never uploaded.
+4. **Zero Telemetry & Tracking:** No Firebase, no analytics, no crashlytics, no tracking SDKs, and no ads.
+5. **No Accounts or Logins:** Sessions, preferences, and favorites are stored strictly on-device using local SQLite and SharedPreferences.
+
+---
+
+## 🚀 Key Features
+
+* **Real-Time Hands-Free Counting:** Dual-engine fusion combining phonetic matching with mathematical energy envelope analysis (`SpeechEnvelopeAnalyzer`) to accurately count repetitions in continuous recitation.
+* **Hardware Acoustic Echo Cancellation (AEC):** Activates device-level communication DSP (`AVAudioSessionModeVoiceChat` on iOS, `VOICE_COMMUNICATION` on Android) so you can recite in unison with the spoken guide without feedback.
+* **Mindful Breath Cadence:** Automatic rhythmic pauses after every cycle (e.g. 3 or 7 repetitions) with a soothing 3-stage decrescendo tactile breath wave (`Heavy` $\to$ `Medium` $\to$ `Light`).
+* **Tartil Letter-Sweep Pacing:** Visual golden highlighter synchronized to classical tajweed pacing with adjustable speeds (Slow, Medium, Fast).
+* **27 Canonical Sunnah Adhkar:** Curated library categorized into Praise & Tasbih, Forgiveness & Istighfar, Tahlil & Tawheed, Protection & Morning/Evening, and Salawat.
+* **Fixed Classical Orthography:** Pure `ٱللّٰه` Unicode representation with liturgical waqf codas (sukūn codas eliminating unwanted case endings).
+* **Interactive Spotlight Tour:** Multi-step guided walkthrough on the counting screen with instant replay via the `?` Help button or Settings.
+* **Silent & Pocket Modes:** Choose between spoken Arabic Voice Guide, tactile Pocket Haptic mode, or Mute.
+* **Manual +1 Fallback:** Large tactile thumb button accessible anytime, even when paused.
+* **Session Interruption Recovery:** Automatically persists active drafts to survive phone calls or app restarts.
 
 ---
 
 ## 🏗️ Architecture Pipeline
-
-The application isolates speech mechanics behind a domain-level `RecognitionEngine`:
 
 ```
 Microphone
     │
     ▼
 In-Memory Audio Stream (PCM 16-bit 16kHz)
+    │  [Hardware AEC: AudioRecord / AVAudioSession VoiceChat]
+    ▼
+Dual Recognition & Repetition Pipeline
+    ├── Voice Activity Detector (VAD) + ASR / Keyword Spotter
+    │       │
+    │       ▼
+    │   Arabic Normalizer (Waqf sukūn coda enforcement, ligature cleanup)
+    │       │
+    │       ▼
+    │   Streaming Repetition Detector (Deduplicates partials, counts +1, +2, +4)
+    │
+    └── Mathematical Envelope Analyzer (ARe)
+            │
+            ▼
+        DSP Waveform Energy Peaks & Valleys Rhythm Validation
     │
     ▼
-Voice Activity Detector (VAD)
-  • Adaptive noise-floor tracking
-  • 350ms hangover duration for Arabic phonetics
-  • 7s max segment memory bounding
-    │
-    ▼
-Local Offline ASR (sherpa-onnx + OpenAI Whisper Tiny int8)
-    │
-    ▼
-Arabic Normalization (Diacritic stripping, Alef/Yeh unification)
-    │
-    ▼
-Controlled Fuzzy Phrase Matcher (Levenshtein distance & confidence tiers)
-    │
-    ▼
-Streaming Repetition Detector (Deduplicates partial hypotheses; counts +1, +2, +4)
-    │
-    ▼
-Domain DhikrCountEvent ──► SessionController ──► UI & Local Persistence
+Acoustic Fusion Gate ──► DhikrCountEvent ──► SessionController ──► UI & Local DB
 ```
 
 ---
 
-## 📖 Canonical Dhikr Library
+## 📱 Releases & APK Installation
 
-Includes 10 authentic Sunnah adhkar with Arabic text, transliteration, and English translation:
+Download pre-compiled release APKs from the [GitHub Releases](https://github.com/aorewole/dhikrflow/releases) page:
 
-1. **Astaghfirullah** (أَسْتَغْفِرُ ٱللَّٰهَ)
-2. **SubhanAllah** (سُبْحَانَ ٱللَّٰهِ)
-3. **Alhamdulillah** (ٱلْحَمْدُ لِلَّٰهِ)
-4. **Allahu Akbar** (ٱللَّٰهُ أَكْبَرُ)
-5. **La ilaha illallah** (لَا إِلَٰهَ إِلَّا ٱللَّٰهُ)
-6. **SubhanAllahi wa bihamdihi** (سُبْحَانَ ٱللَّٰهِ وَبِحَمْدِهِ)
-7. **SubhanAllahil Azeem** (سُبْحَانَ ٱللَّٰهِ ٱلْعَظِيمِ)
-8. **La hawla wa la quwwata illa billah** (لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِٱللَّٰهِ)
-9. **HasbunAllahu wa ni'mal wakeel** (حَسْبُنَا ٱللَّٰهُ وَنِعْمَ ٱلْوَكِيلُ)
-10. **Allahumma salli 'ala Muhammad** (ٱللَّٰهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ)
+* **ARM64 (64-bit)**: `app-arm64-v8a-release.apk` (Recommended for modern Android phones)
+* **ARMv7 (32-bit)**: `app-armeabi-v7a-release.apk` (For older 32-bit devices)
+* **x86_64**: `app-x86_64-release.apk` (For Android emulators & Chromebooks)
 
----
-
-## 🚀 Key Features
-
-- **Hands-Free Repetition Counting:** Accurately counts individual and rapid consecutive repetitions (+1, +2, +4, +10).
-- **Target Progress & Haptics:** Optional repetition targets with real-time progress and subtle haptic feedback. Sessions never terminate abruptly upon reaching target.
-- **Manual +1 Fallback:** Giant on-screen tactile button always available.
-- **Screen-Off / Background Listening (Opt-In):** Optional mode to continue counting when screen is locked, adhering to OS foreground/audio guidelines with immediate microphone release on finish.
-- **Session Interruption Recovery:** Automatically saves draft sessions to survive phone calls or app restarts.
-- **Personal Calibration (Prototype):** Privacy-preserving on-device acoustic tuning without neural network training.
-- **Auto-Detect (Prototype):** Experimental phrase detection with two-phase lock state machine to prevent accidental silent target switching.
+### Quick Install via ADB
+```bash
+adb install -r app-arm64-v8a-release.apk
+```
 
 ---
 
 ## 🛠️ Development & Testing
 
 ### Prerequisites
-- Flutter SDK (>= 3.47)
-- Xcode (for iOS) / Android SDK (for Android)
+- Flutter SDK (`>= 3.47.0`)
+- Xcode 15+ (for iOS / macOS)
+- Android SDK / NDK (for Android)
 
 ### Running Tests
 ```bash
-# Run unit & domain tests (82 passing tests)
+# Run the complete test suite (136 tests)
 flutter test
 
-# Run static analysis
+# Run static analysis (0 warnings / errors)
 flutter analyze
+```
+
+### Building Release APKs
+```bash
+flutter build apk --split-per-abi --release
 ```
 
 ---
 
 ## 📜 Documentation Index
 
-- [`AGENTS.md`](./AGENTS.md): Core product rules and non-negotiable privacy constraints
-- [`docs/MASTER_SPEC.md`](./docs/MASTER_SPEC.md): Full product specification
-- [`docs/RECOGNITION_SPEC.md`](./docs/RECOGNITION_SPEC.md): Recognition pipeline & repetition algorithm
-- [`docs/BUILD_ROADMAP.md`](./docs/BUILD_ROADMAP.md): 14-phase implementation roadmap
-- [`docs/DEPENDENCIES.md`](./docs/DEPENDENCIES.md): Dependency rationale and open-source licenses
-- [`docs/CALIBRATION_REPORT.md`](./docs/CALIBRATION_REPORT.md): Empirical confidence threshold benchmarks
-- [`docs/PERFORMANCE_REPORT.md`](./docs/PERFORMANCE_REPORT.md): Memory, buffering, and battery profiling
-- [`docs/BACKGROUND_AUDIO.md`](./docs/BACKGROUND_AUDIO.md): Platform-specific background audio architecture
-- [`docs/CALIBRATION_EXPERIMENT.md`](./docs/CALIBRATION_EXPERIMENT.md): Personal calibration findings
-- [`docs/AUTO_DETECT_REPORT.md`](./docs/AUTO_DETECT_REPORT.md): Auto-detect safety and complexity benchmarks
-- [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md): Production release readiness audit
+* [`docs/handbook/`](./docs/handbook/): Complete architectural handbook, hurdles, and technical summaries
+* [`JOURNEY_FROM_IDEA_TO_DHIKR_SPEECH_MODEL.md`](./JOURNEY_FROM_IDEA_TO_DHIKR_SPEECH_MODEL.md): Historical evolution and acoustic modeling logs
+* [`dhikr_ai_training/`](./dhikr_ai_training/): On-device acoustic model training guides and dataset pipelines
+* [`AGENTS.md`](./AGENTS.md): Core product rules and non-negotiable privacy guidelines
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).

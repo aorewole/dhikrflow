@@ -9,7 +9,6 @@ import '../events/count_events.dart';
 import '../models/dhikr_definition.dart';
 import '../models/dhikr_session.dart';
 import '../recognition/recognition_engine.dart';
-import '../../recognition/local_recognition_engine.dart';
 import '../settings/settings_controller.dart';
 
 /// Central state machine controlling active dhikr sessions.
@@ -81,25 +80,6 @@ class SessionController extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Load personal voice calibration profile if available and active
-    final repo = settingsController?.repository;
-    if (repo != null && recognitionEngine is LocalRecognitionEngine) {
-      final useCalibration = await repo.getUseVoiceCalibration(dhikr.id);
-      if (useCalibration) {
-        final profile = await repo.getVoiceProfile(dhikr.id);
-        if (profile != null) {
-          (recognitionEngine as LocalRecognitionEngine)
-              .setCalibratedAliases(profile.calibratedAliases);
-        } else {
-          (recognitionEngine as LocalRecognitionEngine)
-              .setCalibratedAliases(null);
-        }
-      } else {
-        (recognitionEngine as LocalRecognitionEngine)
-            .setCalibratedAliases(null);
-      }
-    }
-
     await recognitionEngine.start(dhikr);
     await backgroundListeningService?.onSessionStarted(dhikr);
     sessionRepository.saveActiveDraftSession(_currentSession);
@@ -137,9 +117,12 @@ class SessionController extends ChangeNotifier {
   }
 
   /// Manually increment the counter by 1.
+  /// Works both while active and when paused (for users who prefer manual counting
+  /// without visual/audio distraction).
   void incrementManual() {
     if (_currentSession == null ||
-        _currentSession!.status != SessionStatus.active) {
+        (_currentSession!.status != SessionStatus.active &&
+            _currentSession!.status != SessionStatus.paused)) {
       return;
     }
     _handleCountEvent(
@@ -153,7 +136,8 @@ class SessionController extends ChangeNotifier {
   /// Internal handler for all count events (both voice and manual).
   void _handleCountEvent(DhikrCountEvent event) {
     if (_currentSession == null ||
-        _currentSession!.status != SessionStatus.active) {
+        (_currentSession!.status != SessionStatus.active &&
+            _currentSession!.status != SessionStatus.paused)) {
       return;
     }
 

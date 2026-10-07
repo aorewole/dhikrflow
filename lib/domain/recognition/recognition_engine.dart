@@ -2,6 +2,9 @@ import 'dart:async';
 
 import '../events/count_events.dart';
 import '../models/dhikr_definition.dart';
+import 'recognition_diagnostic.dart';
+
+export 'recognition_diagnostic.dart';
 
 /// Operational states of the speech recognition pipeline.
 enum RecognitionState { idle, listening, paused, error }
@@ -17,6 +20,9 @@ abstract interface class RecognitionEngine {
 
   /// Stream of state changes (idle, listening, paused, error).
   Stream<RecognitionState> get stateStream;
+
+  /// Optional stream of real-time diagnostic and speech transcription events.
+  Stream<RecognitionDiagnostic>? get diagnostics;
 
   /// The current state of the engine.
   RecognitionState get currentState;

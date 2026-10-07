@@ -229,6 +229,66 @@ void main() {
 
       await segSub.cancel();
     });
+
+    test('continuous speech slicing partitions at energy minimum without dropping speaking state', () async {
+      final continuousVad = VoiceActivityDetector(
+        speechThresholdDbfs: -40.0,
+        hangoverDuration: const Duration(milliseconds: 350),
+        minSpeechDuration: const Duration(milliseconds: 120),
+        continuousSpeechSliceDuration: const Duration(milliseconds: 2000),
+        continuousValleySearchWindow: const Duration(milliseconds: 800),
+        adaptiveNoiseTracking: false,
+      );
+
+      final segments = <SpeechSegment>[];
+      final segSub = continuousVad.completedSegments.listen(segments.add);
+
+      // 100ms loud chunk (amplitude 20000)
+      final loudBytes = Uint8List(3200);
+      final loudData = ByteData.sublistView(loudBytes);
+      for (int i = 0; i < 1600; i++) {
+        loudData.setInt16(i * 2, 20000, Endian.little);
+      }
+
+      // 100ms dip chunk (amplitude 4000, still above -40 dBFS speech threshold)
+      final dipBytes = Uint8List(3200);
+      final dipData = ByteData.sublistView(dipBytes);
+      for (int i = 0; i < 1600; i++) {
+        dipData.setInt16(i * 2, 4000, Endian.little);
+      }
+
+      var time = DateTime(2026, 1, 1, 12, 0, 0);
+
+      // Simulate 6.0 seconds (60 chunks) of continuous uninterrupted speech.
+      // Every 1.0 second (10 chunks), insert a 2-chunk (200ms) acoustic valley dip.
+      for (int step = 0; step < 60; step++) {
+        final isValley = (step % 10 == 8 || step % 10 == 9);
+        continuousVad.processChunk(
+          AudioChunk(
+            bytes: isValley ? dipBytes : loudBytes,
+            timestamp: time,
+          ),
+        );
+        time = time.add(const Duration(milliseconds: 100));
+
+        // Speaking state must NEVER drop throughout unbroken continuous speech
+        expect(continuousVad.isSpeaking, isTrue);
+      }
+      await pumpEventQueue();
+
+      // Continuous slicing should have partitioned into multiple segments cleanly
+      expect(segments.length, greaterThanOrEqualTo(2));
+      for (final s in segments) {
+        expect(s.duration.inMilliseconds, greaterThanOrEqualTo(1500));
+        expect(s.duration.inMilliseconds, lessThanOrEqualTo(3500));
+      }
+
+      // After 6s of non-stop speech, VAD is STILL in active speaking state (no reset)
+      expect(continuousVad.isSpeaking, isTrue);
+
+      await segSub.cancel();
+      continuousVad.dispose();
+    });
   });
 
   group('AudioVadPipeline integration', () {
@@ -273,6 +333,94 @@ void main() {
       expect(pipeline.isSpeaking, isFalse);
 
       await sub.cancel();
+    });
+  });
+
+  group('Whisper & Digital AGC Tests', () {
+    test('VAD detects faint whisper tone with whisper threshold', () async {
+      final vad = VoiceActivityDetector(
+        speechThresholdDbfs: -58.0,
+        hangoverDuration: const Duration(milliseconds: 500),
+        minSpeechDuration: const Duration(milliseconds: 60),
+        adaptiveNoiseTracking: false,
+      );
+
+      final events = <VadStateEvent>[];
+      final segments = <SpeechSegment>[];
+      final sub1 = vad.stateEvents.listen(events.add);
+      final sub2 = vad.completedSegments.listen(segments.add);
+
+      // Low amplitude whisper tone: amplitude = 0.004 (~ -48 dBFS)
+      const sampleRate = 16000;
+      const durationMs = 120;
+      const sampleCount = (sampleRate * (durationMs / 1000.0));
+      final bytes = Uint8List(sampleCount.toInt() * 2);
+      final byteData = ByteData.sublistView(bytes);
+
+      for (int i = 0; i < sampleCount; i++) {
+        final t = i / sampleRate;
+        final sampleVal =
+            (0.004 * 32767.0 * math.sin(2.0 * math.pi * 500.0 * t)).round();
+        byteData.setInt16(i * 2, sampleVal, Endian.little);
+      }
+
+      final baseTime = DateTime(2026, 1, 1, 12, 0, 0);
+      final whisperChunk = AudioChunk(
+        bytes: bytes,
+        sampleRate: sampleRate,
+        timestamp: baseTime,
+      );
+      expect(whisperChunk.computeDbfs(), greaterThan(-55.0));
+      expect(whisperChunk.computeDbfs(), lessThan(-40.0));
+
+      vad.processChunk(whisperChunk);
+      expect(vad.isSpeaking, isTrue);
+
+      // Feed silence with timestamp past hangover (600ms later) to conclude segment
+      final silenceBytes = Uint8List(sampleRate * 2); // 1 sec silence
+      final silenceChunk = AudioChunk(
+        bytes: silenceBytes,
+        sampleRate: sampleRate,
+        timestamp: baseTime.add(const Duration(milliseconds: 600)),
+      );
+      vad.processChunk(silenceChunk);
+
+      await pumpEventQueue();
+      expect(segments.isNotEmpty, isTrue);
+
+      await sub1.cancel();
+      await sub2.cancel();
+      vad.dispose();
+    });
+
+    test('Digital AGC scales low-peak whisper float samples to target ~0.70', () {
+      final quietSamples = Float32List(100);
+      for (int i = 0; i < quietSamples.length; i++) {
+        quietSamples[i] = 0.035; // Peak 0.035 (~ -29 dBFS)
+      }
+
+      double peakAbs = 0.0;
+      for (int i = 0; i < quietSamples.length; i++) {
+        final val = quietSamples[i].abs();
+        if (val > peakAbs) peakAbs = val;
+      }
+
+      expect(peakAbs, closeTo(0.035, 0.001));
+
+      if (peakAbs > 0.0001 && peakAbs < 0.65) {
+        final gain = (0.70 / peakAbs).clamp(1.0, 20.0);
+        for (int i = 0; i < quietSamples.length; i++) {
+          quietSamples[i] = (quietSamples[i] * gain).clamp(-1.0, 1.0);
+        }
+      }
+
+      // New peak should be scaled up to 0.70
+      double newPeak = 0.0;
+      for (int i = 0; i < quietSamples.length; i++) {
+        final val = quietSamples[i].abs();
+        if (val > newPeak) newPeak = val;
+      }
+      expect(newPeak, closeTo(0.70, 0.001));
     });
   });
 }

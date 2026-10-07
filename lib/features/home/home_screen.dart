@@ -6,6 +6,7 @@ import '../../domain/models/dhikr_session.dart';
 import '../dhikr_detail/dhikr_detail_screen.dart';
 import '../dhikr_library/dhikr_library_screen.dart';
 import '../history/history_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 import '../session/active_session_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -66,8 +67,52 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _HomeDashboardView extends StatelessWidget {
+class _HomeDashboardView extends StatefulWidget {
   const _HomeDashboardView();
+
+  @override
+  State<_HomeDashboardView> createState() => _HomeDashboardViewState();
+}
+
+class _HomeDashboardViewState extends State<_HomeDashboardView> {
+  // Incrementing this key forces the draft FutureBuilder to re-execute its future.
+  int _draftFetchKey = 0;
+  // Incrementing this key forces the recent sessions FutureBuilder to re-execute.
+  int _recentFetchKey = 0;
+
+  // Track the previous active-session state so we can detect completion.
+  bool _hadActiveSession = false;
+
+  void _invalidateDraft() => setState(() => _draftFetchKey++);
+  void _invalidateRecent() => setState(() => _recentFetchKey++);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final controller = AppScope.of(context).sessionController;
+    controller.removeListener(_onSessionChanged);
+    controller.addListener(_onSessionChanged);
+  }
+
+  @override
+  void dispose() {
+    try {
+      AppScope.of(context).sessionController.removeListener(_onSessionChanged);
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _onSessionChanged() {
+    if (!mounted) return;
+    final hasActive =
+        AppScope.of(context).sessionController.hasActiveSession;
+    if (_hadActiveSession && !hasActive) {
+      // A session just completed — refresh both sections.
+      _invalidateDraft();
+      _invalidateRecent();
+    }
+    _hadActiveSession = hasActive;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,8 +126,19 @@ class _HomeDashboardView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dhikr Counter'),
+        title: const Text('DhikrFlow'),
         actions: [
+          IconButton(
+            tooltip: 'App Tour & Guide',
+            icon: const Icon(Icons.help_outline_rounded),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const OnboardingScreen(isRevisit: true),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.tune_outlined),
@@ -95,7 +151,10 @@ class _HomeDashboardView extends StatelessWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => (context as Element).markNeedsBuild(),
+        onRefresh: () async {
+          _invalidateDraft();
+          _invalidateRecent();
+        },
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           children: [
@@ -114,7 +173,9 @@ class _HomeDashboardView extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Interrupted Session Recovery Banner
+            // ValueKey(_draftFetchKey) forces FutureBuilder to re-run when _invalidateDraft() is called.
             FutureBuilder<DhikrSession?>(
+              key: ValueKey(_draftFetchKey),
               future: deps.sessionRepository.getActiveDraftSession(),
               builder: (context, snapshot) {
                 final draft = snapshot.data;
@@ -191,9 +252,33 @@ class _HomeDashboardView extends StatelessWidget {
                           const SizedBox(width: 8),
                           OutlinedButton(
                             onPressed: () async {
-                              await deps.sessionRepository
-                                  .clearActiveDraftSession();
-                              (context as Element).markNeedsBuild();
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Discard recitation?'),
+                                  content: Text(
+                                    'This will discard ${draft.count} recorded '
+                                    'repetitions of ${draftDhikr.transliteration}.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(ctx).pop(false),
+                                      child: const Text('Keep'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => Navigator.of(ctx).pop(true),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: colorScheme.error,
+                                      ),
+                                      child: const Text('Discard'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirmed == true && context.mounted) {
+                                await deps.sessionRepository.clearActiveDraftSession();
+                                _invalidateDraft();
+                              }
                             },
                             style: OutlinedButton.styleFrom(
                               visualDensity: VisualDensity.compact,
@@ -273,6 +358,7 @@ class _HomeDashboardView extends StatelessWidget {
             const SizedBox(height: 8),
 
             FutureBuilder<List<DhikrSession>>(
+              key: ValueKey(_recentFetchKey),
               future: deps.sessionRepository.getRecentSessions(limit: 3),
               builder: (context, snapshot) {
                 final recentSessions = snapshot.data ?? [];
@@ -314,13 +400,19 @@ class _HomeDashboardView extends StatelessWidget {
                         title: Text(
                           dhikr?.transliteration ?? session.dhikrId,
                           style: const TextStyle(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
                           '${session.count} repetitions • ${_formatDuration(session.duration)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         trailing: Text(
                           dhikr?.arabic ?? '',
                           style: const TextStyle(fontSize: 16),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     );

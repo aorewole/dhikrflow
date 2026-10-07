@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dhikr_counter/app/app.dart';
 import 'package:dhikr_counter/app/app_scope.dart';
@@ -12,15 +11,13 @@ void main() {
     await tester.pumpWidget(DhikrCounterApp(dependencies: deps));
     await tester.pumpAndSettle();
 
-    // Verify Onboarding screen content
-    expect(find.text('Dhikr Counter'), findsOneWidget);
-    expect(find.text('Get Started'), findsOneWidget);
-    expect(find.byIcon(Icons.airplanemode_active_rounded), findsOneWidget);
+    // Verify Onboarding / Tutorial screen content
+    expect(find.text('Welcome to DhikrFlow'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
 
-    // Scroll to and tap Get Started
-    await tester.ensureVisible(find.text('Get Started'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Get Started'));
+    // Tap Skip to navigate straight to Home
+    await tester.tap(find.text('Skip'));
     await tester.pumpAndSettle();
 
     // Verify Home screen rendered

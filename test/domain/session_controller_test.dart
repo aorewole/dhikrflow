@@ -141,9 +141,9 @@ void main() {
       expect(controller.isListening, isFalse);
       expect(mockEngine.currentState, equals(RecognitionState.paused));
 
-      // While paused, manual count should not increment
+      // While paused, manual count works for users who prefer silent/manual counting
       controller.incrementManual();
-      expect(controller.currentSession?.count, equals(0));
+      expect(controller.currentSession?.count, equals(1));
 
       await controller.resumeSession();
       expect(controller.isPaused, isFalse);
@@ -151,7 +151,7 @@ void main() {
       expect(mockEngine.currentState, equals(RecognitionState.listening));
 
       controller.incrementManual();
-      expect(controller.currentSession?.count, equals(1));
+      expect(controller.currentSession?.count, equals(2));
     });
 
     test('completeSession saves to repository and resets controller', () async {

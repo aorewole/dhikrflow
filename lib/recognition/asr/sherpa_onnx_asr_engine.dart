@@ -180,6 +180,35 @@ class SherpaOnnxAsrEngine implements AsrEngine {
       }
     }
 
+    // Digital AGC: normalize quiet speech (whispers or distance) to optimal dynamic range
+    double peakAbs = 0.0;
+    for (int i = 0; i < floatSamples.length; i++) {
+      final val = floatSamples[i].abs();
+      if (val > peakAbs) peakAbs = val;
+    }
+
+    // Filter out sub-threshold ambient background noise / micro-clicks before model hallucination
+    if (peakAbs < 0.012 && segment.duration < const Duration(milliseconds: 250)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[SherpaOnnxAsrEngine] Skipped sub-threshold noise segment (${segment.duration.inMilliseconds}ms, peakAbs=${peakAbs.toStringAsFixed(4)})',
+        );
+      }
+      return '';
+    }
+
+    if (peakAbs > 0.0001 && peakAbs < 0.55) {
+      final gain = (0.55 / peakAbs).clamp(1.0, 20.0);
+      for (int i = 0; i < floatSamples.length; i++) {
+        floatSamples[i] = (floatSamples[i] * gain).clamp(-1.0, 1.0);
+      }
+      if (kDebugMode) {
+        debugPrint(
+          '[SherpaOnnxAsrEngine] Digital AGC applied: peakAbs=${peakAbs.toStringAsFixed(4)} -> gain=${gain.toStringAsFixed(2)}x',
+        );
+      }
+    }
+
     final stream = _recognizer!.createStream();
     try {
       final inputSampleRate = segment.chunks.isNotEmpty
@@ -190,17 +219,17 @@ class SherpaOnnxAsrEngine implements AsrEngine {
       final result = _recognizer!.getResult(stream);
       final rawText = result.text;
 
-      // Strictly enforce Arabic output: strip English/Latin letters, digits, and silence loops
-      final cleanArabic = ArabicNormalizer.cleanStrictArabic(rawText);
+      // Clean speech transcript (preserving Arabic and Latin transliteration, stripping punctuation/digits/loops)
+      final cleanText = ArabicNormalizer.cleanTranscript(rawText);
 
       if (kDebugMode) {
         debugPrint(
           '[SherpaOnnxAsrEngine] Decoded (${segment.duration.inMilliseconds}ms @ ${inputSampleRate}Hz) [$modelType]: '
-          'raw="$rawText" -> cleanArabic="$cleanArabic"',
+          'raw="$rawText" -> clean="$cleanText"',
         );
       }
 
-      return cleanArabic;
+      return cleanText;
     } finally {
       stream.free();
     }

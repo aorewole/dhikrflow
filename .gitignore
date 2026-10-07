@@ -13,6 +13,10 @@
 migrate_working_dir/
 *.onnx
 *.tar.bz2
+scratch/
+*.aiff
+*.wav
+*.mp4
 
 # IntelliJ related
 *.iml

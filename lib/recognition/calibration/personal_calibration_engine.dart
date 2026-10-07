@@ -50,14 +50,15 @@ class PersonalCalibrationEngine {
       // 2. Extract duration
       totalDurationMs += seg.duration.inMilliseconds;
 
-      // 3. Extract matching confidence if transcript is provided
+      // 3. Extract matching similarity if transcript is provided
       if (recognizedTranscripts != null && i < recognizedTranscripts.length) {
-        final match = matcher.evaluate(
-          candidate: recognizedTranscripts[i],
-          target: normTarget,
-        );
-        if (match.isMatch) {
-          totalConfidence += match.confidence;
+        final transcript = recognizedTranscripts[i].trim();
+        if (transcript.isNotEmpty) {
+          final sim = matcher.calculateBestSimilarity(
+            candidate: transcript,
+            target: normTarget,
+          );
+          totalConfidence += sim;
           validMatches++;
         }
       }
@@ -68,16 +69,17 @@ class PersonalCalibrationEngine {
     final avgDurationMs = totalDurationMs ~/ count;
 
     // Derived threshold calibrations:
-    // - VAD floor: set 14 dB below user's average speaking volume, bounded between -48 and -32 dBFS
-    final calibratedSpeechFloor = (avgDbfs - 14.0).clamp(-48.0, -32.0);
+    // - VAD floor: set 14 dB below user's average speaking volume, bounded between -54 and -32 dBFS
+    final calibratedSpeechFloor = (avgDbfs - 14.0).clamp(-54.0, -32.0);
 
-    // - Confidence threshold: calibrate around user's match score if available, default to 0.84
+    // - Confidence threshold: calibrate to user's observed pronunciation score with a 12% tolerance margin,
+    //   accommodating regional accents, vowel elongation, and dialectal variations down to 0.60.
     final double calibratedAccept;
     if (validMatches > 0) {
       final avgConf = totalConfidence / validMatches;
-      calibratedAccept = (avgConf * 0.94).clamp(0.78, 0.90);
+      calibratedAccept = (avgConf * 0.88).clamp(0.60, 0.88);
     } else {
-      calibratedAccept = 0.84;
+      calibratedAccept = 0.82;
     }
 
     final Set<String> userAliases = {};
@@ -89,6 +91,10 @@ class PersonalCalibrationEngine {
           final norm = ArabicNormalizer.normalize(trimmed);
           if (norm.isNotEmpty) {
             userAliases.add(norm);
+          }
+          final phonetic = ArabicNormalizer.normalizePhonetic(trimmed);
+          if (phonetic.isNotEmpty) {
+            userAliases.add(phonetic);
           }
         }
       }

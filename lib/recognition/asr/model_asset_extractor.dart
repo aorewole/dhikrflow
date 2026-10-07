@@ -6,6 +6,12 @@ import 'package:path_provider/path_provider.dart';
 /// Helper to ensure offline ONNX models bundled in Flutter assets
 /// are extracted into the application's local documents directory for native C++ loading.
 class ModelAssetExtractor {
+  static const List<String> tarteelTinyQuranFiles = [
+    'tarteel-tiny-encoder.int8.onnx',
+    'tarteel-tiny-decoder.int8.onnx',
+    'tarteel-tiny-tokens.txt',
+  ];
+
   static const List<String> moonshineArabicFiles = [
     'encoder_model.ort',
     'decoder_model_merged.ort',
@@ -23,6 +29,16 @@ class ModelAssetExtractor {
     'tiny-decoder.int8.onnx',
     'tiny-tokens.txt',
   ];
+
+  /// Returns the target directory for the Tarteel Tiny Quran ONNX model.
+  static Future<Directory> getTarteelTinyModelDirectory() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final modelDir = Directory('${docsDir.path}/models/tarteel_tiny_quran');
+    if (!modelDir.existsSync()) {
+      await modelDir.create(recursive: true);
+    }
+    return modelDir;
+  }
 
   /// Returns the target directory for the Moonshine Arabic ONNX model.
   static Future<Directory> getMoonshineModelDirectory() async {
@@ -55,7 +71,7 @@ class ModelAssetExtractor {
   }
 
   /// Extracts the model files from assets if they are missing or incomplete.
-  /// Prioritizes purpose-built Moonshine Arabic, then Whisper Base, then Whisper Tiny.
+  /// Prioritizes purpose-built Moonshine Arabic, then Tarteel Tiny Quran, then Whisper Base, then Whisper Tiny.
   static Future<bool> ensureModelsExtracted() async {
     // 1. Try extracting purpose-built Moonshine Arabic model
     final moonshineDir = await getMoonshineModelDirectory();
@@ -89,7 +105,39 @@ class ModelAssetExtractor {
       return true;
     }
 
-    // 2. Fallback to Whisper Base
+    // 2. Fallback to Tarteel Tiny Quran model
+    final tarteelDir = await getTarteelTinyModelDirectory();
+    bool tarteelSuccess = true;
+    for (final filename in tarteelTinyQuranFiles) {
+      final destFile = File('${tarteelDir.path}/$filename');
+      if (destFile.existsSync() && destFile.lengthSync() > 0) continue;
+
+      try {
+        final assetPath = 'assets/models/tarteel_tiny_quran/$filename';
+        final byteData = await rootBundle.load(assetPath);
+        final bytes = byteData.buffer.asUint8List(
+          byteData.offsetInBytes,
+          byteData.lengthInBytes,
+        );
+        await destFile.writeAsBytes(bytes, flush: true);
+        debugPrint('[ModelAssetExtractor] Extracted Tarteel Tiny Quran: $filename (${bytes.length} bytes)');
+      } catch (_) {
+        final localFile = File('assets/models/tarteel_tiny_quran/$filename');
+        if (localFile.existsSync() && localFile.lengthSync() > 0) {
+          await localFile.copy(destFile.path);
+          debugPrint('[ModelAssetExtractor] Copied $filename from local filesystem fallback.');
+        } else {
+          tarteelSuccess = false;
+        }
+      }
+    }
+
+    if (tarteelSuccess) {
+      debugPrint('[ModelAssetExtractor] Tarteel Tiny Quran model ready on device.');
+      return true;
+    }
+
+    // 3. Fallback to Whisper Base
     final baseDir = await getBaseModelDirectory();
     bool baseSuccess = true;
     for (final filename in whisperBaseFiles) {

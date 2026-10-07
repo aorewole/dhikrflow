@@ -9,10 +9,10 @@ void main() {
     const matcher = PhraseMatcher();
     final allAdhkar = kCanonicalAdhkar;
 
-    test('Library contains exactly 10 authentic, unique canonical adhkar', () {
-      expect(allAdhkar.length, 10);
+    test('Library contains authentic, unique canonical adhkar', () {
+      expect(allAdhkar.length, 27);
       final ids = allAdhkar.map((d) => d.id).toSet();
-      expect(ids.length, 10, reason: 'All Dhikr IDs must be unique');
+      expect(ids.length, 27, reason: 'All Dhikr IDs must be unique');
     });
 
     test('Every entry has an exact match between ArabicNormalizer and normalizedArabic', () {
@@ -71,6 +71,13 @@ void main() {
       for (int i = 0; i < allAdhkar.length; i++) {
         final targetDhikr = allAdhkar[i];
         final otherDhikr = allAdhkar[(i + 1) % allAdhkar.length];
+
+        // If otherDhikr is an extension/continuation that literally contains the target phrase
+        // (e.g. "Astaghfirullah wa atubu ilayh" begins with "Astaghfirullah"),
+        // the streaming detector is designed to recognize the subphrase.
+        if (otherDhikr.normalizedArabic.startsWith(targetDhikr.normalizedArabic)) {
+          continue;
+        }
 
         final detector = StreamingRepetitionDetector(
           targetPhrase: targetDhikr.arabic,

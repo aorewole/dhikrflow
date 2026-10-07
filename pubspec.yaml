@@ -39,6 +39,7 @@ dependencies:
   record: ^7.1.1
   permission_handler: ^13.0.2
   sherpa_onnx: ^1.13.8
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:
@@ -62,10 +63,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  assets:
-    - assets/models/whisper_tiny/
-    - assets/models/whisper_base/
-    - assets/models/moonshine_arabic/
+  # assets:
+  #   - assets/models/moonshine_arabic/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

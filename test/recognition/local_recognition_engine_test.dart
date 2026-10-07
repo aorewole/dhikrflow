@@ -73,10 +73,10 @@ void main() {
         );
         await pumpEventQueue();
 
-        // 2. Emit silence exceeding 350ms hangover duration to conclude segment
+        // 2. Emit silence exceeding 600ms hangover duration to conclude segment
         audioSource.emitSilence(
-          durationMs: 400,
-          timestamp: baseTime.add(const Duration(milliseconds: 500)),
+          durationMs: 200,
+          timestamp: baseTime.add(const Duration(milliseconds: 900)),
         );
         await pumpEventQueue();
 
@@ -107,8 +107,8 @@ void main() {
       await pumpEventQueue();
 
       audioSource.emitSilence(
-        durationMs: 400,
-        timestamp: baseTime.add(const Duration(milliseconds: 600)),
+        durationMs: 200,
+        timestamp: baseTime.add(const Duration(milliseconds: 900)),
       );
       await pumpEventQueue();
 
@@ -136,8 +136,8 @@ void main() {
       await pumpEventQueue();
 
       audioSource.emitSilence(
-        durationMs: 400,
-        timestamp: baseTime.add(const Duration(milliseconds: 500)),
+        durationMs: 200,
+        timestamp: baseTime.add(const Duration(milliseconds: 900)),
       );
       await pumpEventQueue();
 
@@ -178,7 +178,7 @@ void main() {
 
       final baseTime = DateTime(2026, 1, 1, 12, 0, 0);
 
-      // --- Segment 1: Tone + Silence (>350ms hangover) ---
+      // --- Segment 1: Tone + Silence (>600ms hangover) ---
       audioSource.emitTone(
         amplitude: 0.8,
         durationMs: 250,
@@ -187,8 +187,8 @@ void main() {
       await pumpEventQueue();
 
       audioSource.emitSilence(
-        durationMs: 400,
-        timestamp: baseTime.add(const Duration(milliseconds: 500)),
+        durationMs: 200,
+        timestamp: baseTime.add(const Duration(milliseconds: 900)),
       );
       await pumpEventQueue();
 
@@ -204,8 +204,8 @@ void main() {
       await pumpEventQueue();
 
       audioSource.emitSilence(
-        durationMs: 400,
-        timestamp: baseTime.add(const Duration(milliseconds: 1500)),
+        durationMs: 200,
+        timestamp: baseTime.add(const Duration(milliseconds: 1900)),
       );
       await pumpEventQueue();
 

@@ -13,6 +13,8 @@ class SettingsController extends ChangeNotifier {
   bool _autoSimulateVoiceInDebug = false;
   RecognitionConfig _recognitionConfig = RecognitionConfig.balanced;
   bool _backgroundListeningOptIn = false;
+  bool _hasCompletedOnboarding = false;
+  bool _hasCompletedSessionTutorial = false;
 
   SettingsController({this.repository});
 
@@ -21,6 +23,8 @@ class SettingsController extends ChangeNotifier {
   bool get autoSimulateVoiceInDebug => _autoSimulateVoiceInDebug;
   RecognitionConfig get recognitionConfig => _recognitionConfig;
   bool get backgroundListeningOptIn => _backgroundListeningOptIn;
+  bool get hasCompletedOnboarding => _hasCompletedOnboarding;
+  bool get hasCompletedSessionTutorial => _hasCompletedSessionTutorial;
 
   /// Load persisted settings from repository.
   Future<void> loadSettings() async {
@@ -30,7 +34,25 @@ class SettingsController extends ChangeNotifier {
     _autoSimulateVoiceInDebug = await repository!.getAutoSimulateVoice();
     _recognitionConfig = await repository!.getRecognitionConfig();
     _backgroundListeningOptIn = await repository!.getBackgroundListeningOptIn();
+    _hasCompletedOnboarding = await repository!.getHasCompletedOnboarding();
+    _hasCompletedSessionTutorial = await repository!.getHasCompletedSessionTutorial();
     notifyListeners();
+  }
+
+  Future<void> setHasCompletedOnboarding(bool value) async {
+    if (_hasCompletedOnboarding != value) {
+      _hasCompletedOnboarding = value;
+      notifyListeners();
+      await repository?.setHasCompletedOnboarding(value);
+    }
+  }
+
+  Future<void> setHasCompletedSessionTutorial(bool value) async {
+    if (_hasCompletedSessionTutorial != value) {
+      _hasCompletedSessionTutorial = value;
+      notifyListeners();
+      await repository?.setHasCompletedSessionTutorial(value);
+    }
   }
 
   Future<void> setRecognitionConfig(RecognitionConfig config) async {

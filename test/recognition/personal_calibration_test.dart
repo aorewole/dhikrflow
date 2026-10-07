@@ -155,5 +155,48 @@ void main() {
       final restored = RecognitionProfile.fromJson(json);
       expect(restored.calibratedAliases, equals(profile.calibratedAliases));
     });
+
+    test('calibrates for non-standard regional accent and enables session match', () {
+      const hasbunallah = DhikrDefinition(
+        id: 'hasbunallah',
+        arabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
+        transliteration: 'Hasbunallahu wa ni\'mal wakeel',
+        translation: 'Allah is sufficient for us, and He is the best Disposer of affairs',
+        category: 'Trust in Allah',
+        defaultTarget: 100,
+        normalizedArabic: 'حسبنا الله ونعم الوكيل',
+      );
+
+      final t0 = DateTime(2026, 1, 1, 12, 0, 0);
+      final examples = [
+        createSyntheticExample(amplitude: 0.5, durationMs: 2000, timestamp: t0),
+        createSyntheticExample(amplitude: 0.5, durationMs: 2000, timestamp: t0.add(const Duration(seconds: 3))),
+      ];
+
+      // Regional training outputs (like the user observed)
+      final profile = engine.calibrate(
+        dhikr: hasbunallah,
+        examples: examples,
+        recognizedTranscripts: [
+          'أَسِيبُونَ اللَّهَ وَنِعْمَ الْوَاكِيدُ',
+          'حَسِيبُنَا اللَّهُ عَلِيمَ الْغَافِلُونَ',
+        ],
+      );
+
+      // Verify that acceptance threshold is calibrated to accommodate regional variance
+      expect(profile.calibratedAcceptThreshold, inInclusiveRange(0.60, 0.80));
+
+      // With this calibrated profile, a session recitation in the same regional tone matches!
+      final calibratedMatcher = engine.matcher;
+      final sessionRecitation = 'رَسِيبٌ عَلَى اللَّهِ وَنِيمَ الْوَاجِدِ';
+      final match = calibratedMatcher.evaluate(
+        candidate: sessionRecitation,
+        target: hasbunallah.normalizedArabic,
+        targetAliases: profile.calibratedAliases,
+      );
+
+      // Best similarity using token alignment and phonetic normalizer
+      expect(match.confidence, greaterThanOrEqualTo(profile.calibratedAcceptThreshold));
+    });
   });
 }

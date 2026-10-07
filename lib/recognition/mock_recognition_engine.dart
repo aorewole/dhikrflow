@@ -14,6 +14,8 @@ import 'vad/vad_event.dart';
 class MockRecognitionEngine implements RecognitionEngine {
   final _countEventsController = StreamController<DhikrCountEvent>.broadcast();
   final _stateController = StreamController<RecognitionState>.broadcast();
+  final _diagnosticController =
+      StreamController<RecognitionDiagnostic>.broadcast();
 
   final AudioVadPipeline? pipeline;
   StreamSubscription<SpeechSegment>? _segmentSubscription;
@@ -35,6 +37,10 @@ class MockRecognitionEngine implements RecognitionEngine {
 
   @override
   Stream<RecognitionState> get stateStream => _stateController.stream;
+
+  @override
+  Stream<RecognitionDiagnostic> get diagnostics =>
+      _diagnosticController.stream;
 
   @override
   RecognitionState get currentState => _currentState;
@@ -109,6 +115,17 @@ class MockRecognitionEngine implements RecognitionEngine {
         ),
       );
     }
+
+    _diagnosticController.add(
+      RecognitionDiagnostic(
+        timestamp: DateTime.now(),
+        rawTranscript: _currentTarget?.arabic,
+        normalizedTranscript: _currentTarget?.arabic,
+        newOccurrences: repetitions,
+        confidence: confidence,
+        isSpeaking: false,
+      ),
+    );
   }
 
   void _setState(RecognitionState state) {
@@ -132,5 +149,6 @@ class MockRecognitionEngine implements RecognitionEngine {
     pipeline?.dispose();
     _countEventsController.close();
     _stateController.close();
+    _diagnosticController.close();
   }
 }

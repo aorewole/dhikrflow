@@ -22,26 +22,22 @@ class ArabicNormalizer {
     r'[\u060C\u061B\u061F\u066A\u066B\u066C\u066D\u06D4.!?,:;"\x27`~()\[\]{}<>/\\|@#$%^&*+=_\-]',
   );
 
-  // Regex for non-Arabic characters (Latin alphabet, ASCII digits, symbols)
-  static final RegExp _nonArabicRegex = RegExp(r'[a-zA-Z0-9]');
-
   // Regex for multiple whitespace characters
   static final RegExp _whitespaceRegex = RegExp(r'\s+');
 
   // Regex matching repetitive single-letter loops produced by autoregressive decoders on silence (e.g. "س س س س" or "و و و و")
-  static final RegExp _repetitionLoopRegex = RegExp(r'(?:^|\s)([\u0600-\u06FF])(?:\s+\1){2,}(?:\s|$)');
+  static final RegExp _repetitionLoopRegex = RegExp(r'(?:^|\s)([\u0600-\u06FFa-zA-Z])(?:\s+\1){2,}(?:\s|$)');
 
-  /// Cleans and strictly enforces Arabic output.
-  ///
-  /// 1. Strips all English/Latin letters and ASCII digits.
-  /// 2. Removes decoder repetition loops on silence (e.g. "و و و و" or "س س س").
-  /// 3. Normalizes whitespace and returns only clean Arabic text.
-  /// If no Arabic characters remain, returns an empty string.
-  static String cleanStrictArabic(String text) {
+  /// Cleans raw speech recognition transcript (supporting Arabic script and Latin transliteration):
+  /// 1. Strips numeric digits.
+  /// 2. Removes decoder repetition loops on silence (e.g. "و و و و" or "s s s").
+  /// 3. Strips punctuation marks.
+  /// 4. Normalizes whitespace.
+  static String cleanTranscript(String text) {
     if (text.isEmpty) return '';
 
-    // Remove English/Latin characters and digits
-    String cleaned = text.replaceAll(_nonArabicRegex, ' ');
+    // Strip numbers
+    String cleaned = text.replaceAll(RegExp(r'[0-9\u0660-\u0669]'), ' ');
 
     // Remove repetitive single-character hallucination loops
     cleaned = cleanHallucinations(cleaned);
@@ -52,13 +48,11 @@ class ArabicNormalizer {
     // Normalize whitespace
     cleaned = cleaned.replaceAll(_whitespaceRegex, ' ').trim();
 
-    // If there are no Arabic letters at all, discard
-    if (!containsArabicLetters(cleaned)) {
-      return '';
-    }
-
     return cleaned;
   }
+
+  /// Backward-compatible alias for [cleanTranscript].
+  static String cleanStrictArabic(String text) => cleanTranscript(text);
 
   /// Removes repetitive single-character loops generated during low volume or silence.
   static String cleanHallucinations(String text) {
@@ -73,44 +67,54 @@ class ArabicNormalizer {
 
   /// Checks whether [text] contains at least one Arabic letter.
   static bool containsArabicLetters(String text) {
-    return RegExp(r'[\u0621-\u064A]').hasMatch(text);
+    return RegExp(r'[\u0621-\u064A\u0671]').hasMatch(text);
   }
 
-  /// Normalizes an Arabic string into a standardized comparison form.
-  ///
-  /// Preserves the core semantic characters while eliminating orthographic
-  /// variations produced by different ASR model tokenizers.
+  /// Normalizes a string (Arabic script or Latin transliteration) into a standardized comparison form.
   static String normalize(String text) {
     if (text.isEmpty) return '';
 
-    // First ensure strict Arabic filtering
-    String result = text.replaceAll(_nonArabicRegex, ' ');
+    if (containsArabicLetters(text)) {
+      // 1. Remove diacritics (tashkeel)
+      String result = text.replaceAll(_tashkeelRegex, '');
 
-    // 1. Remove diacritics (tashkeel)
-    result = result.replaceAll(_tashkeelRegex, '');
+      // 2. Remove tatweel (kashida)
+      result = result.replaceAll(_tatweelRegex, '');
 
-    // 2. Remove tatweel (kashida)
-    result = result.replaceAll(_tatweelRegex, '');
+      // 3. Normalize alef variants to bare alef (ا)
+      result = result.replaceAll(RegExp(r'[\u0622\u0623\u0625\u0671]'), '\u0627');
 
-    // 3. Normalize alef variants to bare alef (ا)
-    // \u0622 (آ), \u0623 (أ), \u0625 (إ), \u0671 (ٱ) -> \u0627 (ا)
-    result = result.replaceAll(RegExp(r'[\u0622\u0623\u0625\u0671]'), '\u0627');
+      // 4. Normalize teh marbuta (ة) to heh (ه)
+      result = result.replaceAll('\u0629', '\u0647');
 
-    // 4. Normalize teh marbuta (ة) to heh (ه)
-    // \u0629 (ة) -> \u0647 (ه)
-    result = result.replaceAll('\u0629', '\u0647');
+      // 5. Normalize alef maksura (ى) to yeh (ي)
+      result = result.replaceAll('\u0649', '\u064A');
 
-    // 5. Normalize alef maksura (ى) to yeh (ي)
-    // \u0649 (ى) -> \u064A (ي)
-    result = result.replaceAll('\u0649', '\u064A');
+      // 6. Strip punctuation and non-Arabic symbols
+      result = result.replaceAll(_punctuationRegex, ' ');
+      result = result.replaceAll(RegExp(r'[^\u0621-\u064A\s]'), ' ');
 
-    // 6. Strip punctuation
-    result = result.replaceAll(_punctuationRegex, ' ');
+      // 7. Collapse spaces and trim
+      result = result.replaceAll(_whitespaceRegex, ' ').trim();
 
-    // 7. Collapse spaces and trim
-    result = result.replaceAll(_whitespaceRegex, ' ').trim();
-
-    return result.toLowerCase();
+      return result.toLowerCase();
+    } else {
+      // Latin transliteration: strip diacritics/macrons, lowercase, collapse spaces
+      String result = text.toLowerCase();
+      result = result
+          .replaceAll(RegExp(r'[āáàâä]'), 'a')
+          .replaceAll(RegExp(r'[īíìîï]'), 'i')
+          .replaceAll(RegExp(r'[ūúùûü]'), 'u')
+          .replaceAll(RegExp(r'[ḍđ]'), 'd')
+          .replaceAll(RegExp(r'[ẓżźž]'), 'z')
+          .replaceAll(RegExp(r'[ṭţť]'), 't')
+          .replaceAll(RegExp(r'[ṣśšş]'), 's')
+          .replaceAll(RegExp(r'[ḥh́]'), 'h');
+      result = result.replaceAll(_punctuationRegex, ' ');
+      result = result.replaceAll(RegExp(r'[^a-z\s]'), ' ');
+      result = result.replaceAll(_whitespaceRegex, ' ').trim();
+      return result;
+    }
   }
 
   /// Splits normalized Arabic text into individual word tokens.
@@ -118,5 +122,60 @@ class ArabicNormalizer {
     final normalized = normalize(text);
     if (normalized.isEmpty) return const [];
     return normalized.split(' ').where((w) => w.isNotEmpty).toList();
+  }
+
+  // Regex matching repeated identical words produced by autoregressive loops (e.g. "عليم عليم عليم" -> "عليم")
+  static final RegExp _repeatedWordRegex = RegExp(r'(?:^|\s)(\S+)(?:\s+\1)+(?:\s|$)');
+
+  /// Phonetically normalizes Arabic dialectal variations and sound-alikes:
+  /// - Collapses inter-consonant elongation vowels (e.g. "حسيبنا" -> "حسبنا")
+  /// - Normalizes dialectal consonant shifts:
+  ///   - ث, ص -> س
+  ///   - ط -> ت
+  ///   - ظ, ذ -> ز
+  ///   - ق, ج -> ك
+  ///   - ء, ئ, ؤ -> ا
+  /// - Normalizes softened coda endings (e.g. الواكيد <-> الوكيل)
+  static String normalizePhonetic(String text) {
+    if (text.isEmpty) return '';
+    String s = normalize(text);
+
+    // 1. Collapse repeating word loops (e.g. "عليم عليم عليم" -> "عليم")
+    s = s.replaceAllMapped(_repeatedWordRegex, (m) => ' ${m[1]} ');
+
+    // 2. Normalize dialectal consonant shifts
+    s = s.replaceAll(RegExp(r'[ثص]'), 'س');
+    s = s.replaceAll(RegExp(r'[ط]'), 'ت');
+    s = s.replaceAll(RegExp(r'[ظذض]'), 'ز');
+    s = s.replaceAll(RegExp(r'[قجغخ]'), 'ك');
+    s = s.replaceAll(RegExp(r'[ءئؤآأإ]'), 'ا');
+
+    // 2b. Normalize bilabial nasalization in tasbih (e.g. سمان / سمحان <-> سبحان)
+    s = s.replaceAll('سمان', 'سبحان').replaceAll('سمحان', 'سبحان');
+
+    // 3. Normalize softened codas (e.g. الواكيد <-> الوكيل)
+    s = s.replaceAll(RegExp(r'كيد$|كيد\s'), 'كيل ');
+
+    // 4. Collapse elongated vowels between consonants (e.g. حسيبنا -> حسبنا)
+    s = s.replaceAllMapped(
+      RegExp(r'([\u0621-\u064A])ي([\u0621-\u064A])'),
+      (m) => '${m[1]}${m[2]}',
+    );
+
+    return s.replaceAll(_whitespaceRegex, ' ').trim();
+  }
+
+  /// Ensures an Arabic phrase ends with liturgical waqf (coda stop without trailing case vowels)
+  /// and sanitizes any erroneous redundant diacritics (such as misplaced fatha on the Lafdh al-Jalalah ligature).
+  ///
+  /// In liturgical dhikr recitation, stopping at phrase boundaries (waqf) silences
+  /// the grammatical vowel ending (i'rab: fathah, kasrah, dammah, tanween) into pausal silence.
+  /// For instance: "أَسْتَغْفِرُ ٱللَّٰهَ" -> "أَسْتَغْفِرُ ٱللّٰه".
+  static String enforceSukunCoda(String text) {
+    if (text.isEmpty) return text;
+    // 1. Remove redundant fatha before shadda + superscript dagger alif (0x64E + 0x651 + 0x670 -> 0x651 + 0x670)
+    String sanitized = text.replaceAll('\u064e\u0651\u0670', '\u0651\u0670');
+    // 2. Strip any trailing vowel harakat/tashkeel at the very end of the string
+    return sanitized.replaceAll(RegExp(r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]+$'), '').trim();
   }
 }

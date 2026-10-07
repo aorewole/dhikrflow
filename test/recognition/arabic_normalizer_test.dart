@@ -2,58 +2,61 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dhikr_counter/recognition/text/arabic_normalizer.dart';
 
 void main() {
-  group('ArabicNormalizer Strict Arabic Enforcement Tests', () {
-    test('strips English hallucinated words from Arabic transcripts', () {
+group('ArabicNormalizer Bilingual Cleaning & Normalization Tests', () {
+    test('cleans punctuation and numbers while preserving Arabic and Latin transliterations', () {
       expect(
-        ArabicNormalizer.cleanStrictArabic('أستعب في the law'),
-        equals('أستعب في'),
+        ArabicNormalizer.cleanTranscript('أستغفر الله 123!'),
+        equals('أستغفر الله'),
       );
       expect(
-        ArabicNormalizer.cleanStrictArabic('وعلم like'),
-        equals('وعلم'),
+        ArabicNormalizer.cleanTranscript('Astaghfirullah, 456.'),
+        equals('Astaghfirullah'),
       );
       expect(
-        ArabicNormalizer.cleanStrictArabic('سبحان الله English test'),
-        equals('سبحان الله'),
+        ArabicNormalizer.cleanTranscript('سبحان الله / SubhanAllah'),
+        equals('سبحان الله SubhanAllah'),
       );
     });
 
-    test('discards non-Arabic speech completely', () {
-      expect(ArabicNormalizer.cleanStrictArabic('1 2 3 4'), isEmpty);
-      expect(ArabicNormalizer.cleanStrictArabic('hello how are you'), isEmpty);
-      expect(ArabicNormalizer.cleanStrictArabic('one two three'), isEmpty);
-      expect(ArabicNormalizer.cleanStrictArabic('!@#\$%^&*()'), isEmpty);
+    test('discards pure digits and punctuation', () {
+      expect(ArabicNormalizer.cleanTranscript('1 2 3 4'), isEmpty);
+      expect(ArabicNormalizer.cleanTranscript('!@#\$%^&*()'), isEmpty);
     });
 
     test('suppresses autoregressive repetition loops on silence', () {
-      expect(ArabicNormalizer.cleanStrictArabic('س س س س س س'), isEmpty);
-      expect(ArabicNormalizer.cleanStrictArabic('و و و و و و'), isEmpty);
-      expect(ArabicNormalizer.cleanStrictArabic('  و   و   و   '), isEmpty);
+      expect(ArabicNormalizer.cleanTranscript('س س س س س س'), isEmpty);
+      expect(ArabicNormalizer.cleanTranscript('و و و و و و'), isEmpty);
+      expect(ArabicNormalizer.cleanTranscript('  و   و   و   '), isEmpty);
+      expect(ArabicNormalizer.cleanTranscript('s s s s s'), isEmpty);
     });
 
     test('preserves legitimate Arabic phrases cleanly', () {
       expect(
-        ArabicNormalizer.cleanStrictArabic('أَسْتَغْفِرُ اللَّهَ'),
+        ArabicNormalizer.cleanTranscript('أَسْتَغْفِرُ اللَّهَ'),
         equals('أَسْتَغْفِرُ اللَّهَ'),
       );
       expect(
-        ArabicNormalizer.cleanStrictArabic('سبحان الله وبحمده'),
+        ArabicNormalizer.cleanTranscript('سبحان الله وبحمده'),
         equals('سبحان الله وبحمده'),
       );
       expect(
-        ArabicNormalizer.cleanStrictArabic('الله أكبر'),
+        ArabicNormalizer.cleanTranscript('الله أكبر'),
         equals('الله أكبر'),
       );
     });
 
-    test('normalize produces clean normalized comparison string without English', () {
-      expect(
-        ArabicNormalizer.normalize('أستعب في the law'),
-        equals('استعب في'),
-      );
+    test('normalize produces clean normalized comparison string for both Arabic and Latin', () {
       expect(
         ArabicNormalizer.normalize('أَسْتَغْفِرُ اللَّهَ'),
         equals('استغفر الله'),
+      );
+      expect(
+        ArabicNormalizer.normalize('Astaghfirullah'),
+        equals('astaghfirullah'),
+      );
+      expect(
+        ArabicNormalizer.normalize('Allāhu  Akbar'),
+        equals('allahu akbar'),
       );
     });
   });

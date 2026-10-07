@@ -6,6 +6,10 @@ void main() {
   group('RecognitionConfig Tests', () {
     test('presets have valid monotonically consistent thresholds', () {
       expect(
+        RecognitionConfig.whisper.acceptThreshold,
+        lessThan(RecognitionConfig.sensitive.acceptThreshold),
+      );
+      expect(
         RecognitionConfig.sensitive.acceptThreshold,
         lessThan(RecognitionConfig.balanced.acceptThreshold),
       );
@@ -14,6 +18,10 @@ void main() {
         lessThan(RecognitionConfig.strict.acceptThreshold),
       );
 
+      expect(
+        RecognitionConfig.whisper.speechThresholdDbfs,
+        lessThan(RecognitionConfig.sensitive.speechThresholdDbfs),
+      );
       expect(
         RecognitionConfig.sensitive.speechThresholdDbfs,
         lessThan(RecognitionConfig.balanced.speechThresholdDbfs),
