@@ -1,13 +1,13 @@
 # 02. Engineering Journey, Hurdles & Solutions
 
-Every significant engineering system evolves through hard-earned discoveries. This document chronicles the challenges faced during development, the hypotheses tested, the dead ends encountered, and the final solutions that shaped the Dhikr Counter into a robust, deterministic product.
+Every significant engineering system evolves through hard-earned discoveries. This document chronicles the challenges faced during development, the hypotheses tested, the dead ends encountered, and the final solutions that shaped DhikrPulse into a robust, deterministic product.
 
 ---
 
 ## Hurdle 1: Neural ASR Hallucinations on Liturgical Chants
 
 ### The Challenge
-Initially, we integrated on-device neural Automatic Speech Recognition (ASR) engines (evaluating **Whisper Base INT8**, **Whisper Tiny INT8**, **Moonshine Arabic ORT**, and **Tarteel Tiny Quran** via `sherpa-onnx`).
+Initially, I integrated on-device neural Automatic Speech Recognition (ASR) engines (evaluating **Whisper Base INT8**, **Whisper Tiny INT8**, **Moonshine Arabic ORT**, and **Tarteel Tiny Quran** via `sherpa-onnx`).
 
 While these models performed acceptably on conversational Arabic or long Quranic verses, they exhibited severe degradation during **rapid, repetitive liturgical dhikr**:
 * When a user rapidly recited *Astaghfirullah* once in an 800ms window, Moonshine had an estimated **~50% hallucination rate**, producing spurious Arabic sentences such as:
@@ -19,23 +19,23 @@ While these models performed acceptably on conversational Arabic or long Quranic
 * The neural decoder tried to force short repetitive acoustic bursts into conversational grammar, causing false negatives (missed counts) and user frustration.
 
 ### The Fix
-1. **Phoneme-Family Radical Gate:** We initially implemented a trilateral root matcher (`_isPlausibleTranscript`) that checked whether the ASR transcript shared Arabic root radicals (e.g. `غ-ف-ر` for *Astaghfirullah*). If not, the segment was immediately rejected as a hallucination.
-2. **Full Decoupling of Neural ASR:** Ultimately, recognizing that neural ASR added ~150 MB to download size, consumed excessive CPU/battery, and was inherently probabilistic, we **decoupled the counting pipeline from ASR entirely**. Counting now relies on deterministic **Speech Envelope Analysis (ARe)**, while ASR remains strictly an optional, non-blocking background fallback.
+1. **Phoneme-Family Radical Gate:** I initially implemented a trilateral root matcher (`_isPlausibleTranscript`) that checked whether the ASR transcript shared Arabic root radicals (e.g. `غ-ف-ر` for *Astaghfirullah*). If not, the segment was immediately rejected as a hallucination.
+2. **Full Decoupling of Neural ASR:** Ultimately, recognizing that neural ASR added ~150 MB to download size, consumed excessive CPU/battery, and was inherently probabilistic, I **decoupled the counting pipeline from ASR entirely**. Counting now relies on deterministic **Speech Envelope Analysis (ARe)**, while ASR remains strictly an optional, non-blocking background fallback.
 
 ---
 
 ## Hurdle 2: The Clap / Hand-Snap False Positive Dilemma
 
 ### The Challenge
-During early testing with acoustic energy triggers, we noticed that non-speech sounds — such as a single hand clap, a finger snap, or a phone tapping against a desk — would falsely register as a dhikr repetition.
+During early testing with acoustic energy triggers, I noticed that non-speech sounds — such as a single hand clap, a finger snap, or a phone tapping against a desk — would falsely register as a dhikr repetition.
 
 ### The Physics & Signal Analysis
-We inspected the raw PCM time-domain waveforms and discovered clear physical differentiators:
+I inspected the raw PCM time-domain waveforms and discovered clear physical differentiators:
 * **A Hand Clap:** An acoustic impulse with an extremely steep onset ($< 5\text{ms}$) and a total duration of **30ms to 120ms**.
 * **Human Liturgical Speech:** Requires physical movement of articulators (tongue, lips, vocal cords). The shortest Arabic dhikr (*Allahu Akbar* or *Astaghfirullah*) physically takes **440ms to 900ms** to articulate.
 
 ### The Fix
-1. **Physical Transient Floor:** In `LocalRecognitionEngine._handleSpeechSegment`, we established a hard duration floor:
+1. **Physical Transient Floor:** In `LocalRecognitionEngine._handleSpeechSegment`, I established a hard duration floor:
    ```dart
    if (segment.duration.inMilliseconds < 200) {
      // Discard immediately: claps, snaps, and microphone thumps
@@ -59,13 +59,13 @@ In classical Arabic grammar (*Naḥw*), words possess case endings (*I'rāb*). I
 Because standard mobile TTS engines read Arabic as standard modern prose rather than liturgical recitation, they mechanically voiced the terminal short vowel unless a pausal boundary was explicitly enforced.
 
 ### The Fix
-1. **Sukūn Standardization across the Canonical Library:** In `DhikrRepository`, we scrubbed all trailing case diacritics and standardized terminal words with explicit Sukūn / Waqf codas.
+1. **Sukūn Standardization across the Canonical Library:** In `DhikrRepository`, I scrubbed all trailing case diacritics and standardized terminal words with explicit Sukūn / Waqf codas.
 2. **Algorithmic Diacritic Stripping:** Created `ArabicNormalizer.enforceSukunCoda(text)`:
    ```dart
    // Strips trailing fatḥa (\u064E), ḍamma (\u064F), kasra (\u0650), etc.
    // and ensures terminal waqf representation.
    ```
-3. **Pausal Boundary Injection:** In `ArabicSpeechGuideService.speakDhikr()`, we append an explicit grammatical sentence stop (`.`) to the cleaned text (`'$clean.'`). This forces iOS and Android speech synthesis engines to treat the phrase as an isolated pausal sentence boundary, producing a crisp, authentic *"lah"*.
+3. **Pausal Boundary Injection:** In `ArabicSpeechGuideService.speakDhikr()`, the service appends an explicit grammatical sentence stop (`.`) to the cleaned text (`'$clean.'`). This forces iOS and Android speech synthesis engines to treat the phrase as an isolated pausal sentence boundary, producing a crisp, authentic *"lah"*.
 
 ---
 
@@ -95,7 +95,7 @@ When the first Android debug APK was compiled, its file size was **350 MB**, far
 3. **Unneeded Neural Model Weights:** The `assets/models/moonshine_arabic/` folder included ~141 MB of ONNX model binaries.
 
 ### The Fix
-1. **Unbundled Heavy Neural Weights:** Because our mathematical waveform engine decoupled the need for local neural ASR, we removed heavy neural models from assets.
+1. **Unbundled Heavy Neural Weights:** Because the mathematical waveform engine decoupled the need for local neural ASR, I removed heavy neural models from assets.
 2. **Ahead-of-Time (AOT) Tree-Shaking:** Compiled with `--release`, tree-shaking icons from 1.6 MB down to 9 KB (99.5% reduction) and compiling Dart to lean machine code.
 3. **Split Per ABI (`--split-per-abi`):** Split the release build into targeted packages:
    * **`app-arm64-v8a-release.apk`:** **45.9 MB** (Modern 64-bit devices)
@@ -110,9 +110,9 @@ When the first Android debug APK was compiled, its file size was **350 MB**, far
 When users enabled the spoken audio guide, the phone's speaker outputted the dhikr pronunciation. However, the device's microphone picked up the speaker's own sound, causing the counting engine to increment even when the user said nothing.
 
 ### The Physics & Systems Solution
-Rather than introducing complex software filter delays or blocking the microphone while speaking (which would prevent users from reciting in unison with the guide), we leveraged mobile hardware **Acoustic Echo Cancellation (AEC)**:
-1. **iOS Audio Session Configuration:** We configured the iOS audio session to `AVAudioSessionCategoryPlayAndRecord` with `AVAudioSessionModeVoiceChat`. This mode activates Apple's dedicated hardware echo cancellation DSP designed for FaceTime and VoIP calls.
-2. **Android Audio Record Source:** On Android, we routed input through `AudioSource.VOICE_COMMUNICATION`. Android automatically synchronizes speaker output buffers with microphone input and subtracts the speaker echo at the hardware DSP layer.
+Rather than introducing complex software filter delays or blocking the microphone while speaking (which would prevent users from reciting in unison with the guide), I leveraged mobile hardware **Acoustic Echo Cancellation (AEC)**:
+1. **iOS Audio Session Configuration:** I configured the iOS audio session to `AVAudioSessionCategoryPlayAndRecord` with `AVAudioSessionModeVoiceChat`. This mode activates Apple's dedicated hardware echo cancellation DSP designed for FaceTime and VoIP calls.
+2. **Android Audio Record Source:** On Android, I routed input through `AudioSource.VOICE_COMMUNICATION`. Android automatically synchronizes speaker output buffers with microphone input and subtracts the speaker echo at the hardware DSP layer.
 3. **Result:** The user can recite comfortably in unison with the audio guide, and the microphone only captures the user's voice without speaker bleeding.
 
 ---
@@ -123,7 +123,7 @@ Rather than introducing complex software filter delays or blocking the microphon
 When reciting with the phone in a pocket, users rely purely on tactile vibration. Initially, the counter used standard medium vibrations for counting, but also triggered standard vibrations when the breath pause appeared. Users could not distinguish whether a repetition was counted or if a breathing pause had begun.
 
 ### The Fix
-We designed a distinct **3-Stage Decrescendo Tactile Breath Wave**:
+I designed a distinct **3-Stage Decrescendo Tactile Breath Wave**:
 * Instead of a single blunt pulse, the breath pause triggers a cascading 1.8-second wave:
   $$\text{Heavy} \longrightarrow \text{Medium} \longrightarrow \text{Light}$$
 * This physically communicates an exhale/inhale rhythm to the palm or pocket, making it impossible to confuse with a single crisp count click.
@@ -136,7 +136,7 @@ We designed a distinct **3-Stage Decrescendo Tactile Breath Wave**:
 On iOS devices, the sacred name of Allah (*Lafdh al-Jalālah*) was displaying a weird visual anomaly: a floating, superimposed fatḥa rendered directly on top of the shadda at the end of phrases, causing the text to look malformed and confusing the TTS engine.
 
 ### The Fix
-1. In `DhikrRepository`, we migrated all composite string representations to the classical Uthmani Quranic Unicode standard: `ٱللّٰه` (combining dagger alif with classical shadda).
-2. We enforced strict terminal **Waqf** (pausal sukūn), completely eliminating trailing accusative vowels.
+1. In `DhikrRepository`, I migrated all composite string representations to the classical Uthmani Quranic Unicode standard: `ٱللّٰه` (combining dagger alif with classical shadda).
+2. I enforced strict terminal **Waqf** (pausal sukūn), completely eliminating trailing accusative vowels.
 3. The sacred phrases render crisply across both iOS Retina screens and Android AMOLED displays.
 

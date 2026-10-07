@@ -23,7 +23,7 @@ Select Dhikr ──▶ Set Target (Optional) ──▶ Recite Hands-Free ──�
 
 ---
 
-## 3. Our Non-Negotiable Privacy Promise
+## 3. Non-Negotiable Privacy Promise
 
 Privacy is not an afterthought or an optional toggle in this app — it is the fundamental foundation:
 
@@ -38,9 +38,9 @@ Privacy is not an afterthought or an optional toggle in this app — it is the f
 
 You might wonder: *How does an app know when I recite a phrase without sending my voice to Siri, Google, or ChatGPT?*
 
-Earlier in the project, we tried using heavy artificial intelligence speech models that transcribe speech into written text. However, we discovered that when someone recites sacred phrases rapidly or softly (like repeating *Astaghfirullah, Astaghfirullah, Astaghfirullah*), AI speech models get confused and make mistakes.
+Earlier in the project, I explored using artificial intelligence speech models that transcribe speech into written text. However, testing revealed that when someone recites sacred phrases rapidly or softly (like repeating *Astaghfirullah, Astaghfirullah, Astaghfirullah*), neural speech models get confused and hallucinate.
 
-Instead, we built a **Mathematical Acoustic Waveform Engine**:
+Instead, DhikrPulse is powered by a **Mathematical Acoustic Waveform Engine**:
 
 1. **The Human Voice Detector (VAD):** The phone first checks if sound entering the microphone is human speech or just room background noise.
 2. **The Clap & Noise Shield:** Claps, snaps, coughs, and phone bumps make sharp, ultra-short bursts of sound (usually lasting less than 0.1 seconds). Human speech physically requires taking time to shape vowels and consonants (at least 0.4 to 0.9 seconds per dhikr). The app instantly rejects sharp sounds and claps, preventing accidental counts.

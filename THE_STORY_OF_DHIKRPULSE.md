@@ -39,12 +39,12 @@ What began as an apparently simple app turned into an intense deep-tech journey 
 
 ## Chapter 1: The Neural AI Mirage
 
-Naturally, our initial instinct was to look at modern deep learning speech recognition. We investigated on-device Automatic Speech Recognition (ASR) engines, evaluating **OpenAI Whisper Base INT8**, **Whisper Tiny INT8**, and **Moonshine Arabic ORT** running locally on mobile hardware via ONNX Runtime.
+Naturally, my initial instinct was to look at modern deep learning speech recognition. I investigated on-device Automatic Speech Recognition (ASR) engines, evaluating **OpenAI Whisper Base INT8**, **Whisper Tiny INT8**, and **Moonshine Arabic ORT** running locally on mobile hardware via ONNX Runtime.
 
 The theoretical appeal was obvious: an on-device neural model would listen to microphone audio, transcribe the spoken Arabic words, and match them against the active dhikr phrase.
 
 ### The Catastrophic Hallucination Reality
-When we took these models out of static benchmarks and tested them on real-world continuous recitation, the illusion shattered.
+When I took these models out of static benchmarks and tested them on real-world continuous recitation, the illusion shattered.
 
 Sacred liturgical dhikr has unique acoustic properties: people recite phrases rapidly, softly, and repeatedly in rhythmic cycles (e.g. repeating *Astaghfirullah, Astaghfirullah, Astaghfirullah* in rapid succession). 
 
@@ -61,21 +61,21 @@ Because the decoded text was random dialect nonsense, the phrase matcher missed 
 
 ## Chapter 2: The Fork in the Road & The Abandoned AI Training Pipeline
 
-Faced with this failure, we initially considered the conventional AI route:
-> *"What if we train a dedicated, fine-tuned neural model specifically on liturgical Arabic dhikr? We could set up an open voice donation initiative, collect thousands of community recordings, and train a specialized neural acoustic model."*
+Faced with this failure, I initially considered the conventional AI route:
+> *"What if I train a dedicated, fine-tuned neural model specifically on liturgical Arabic dhikr? I could set up an open voice donation initiative, collect thousands of community recordings, and train a specialized neural acoustic model."*
 
-We mapped out dataset schemas, augmentation pipelines, and audio collection strategies. 
+I mapped out dataset schemas, augmentation pipelines, and audio collection strategies. 
 
-**Then we stopped and questioned our fundamental premise.**
+**Then I stopped and questioned my fundamental premise.**
 
 Taking the custom neural AI route meant:
-1. Asking users to donate private voice recordings—contradicting our core privacy philosophy.
+1. Asking users to donate private voice recordings—contradicting my core privacy philosophy.
 2. Managing complex dataset infrastructure, cloud training costs, and retraining cycles.
 3. Forcing every mobile user to download **100 MB to 200 MB** of neural model weights.
 4. Burning phone battery and heating mobile processors running matrix multiplications on every spoken second.
 5. Inherent unpredictability: neural decoders are probabilistic by design and can still hallucinate in noisy environments.
 
-We asked ourselves: **Do we actually need a multi-million-parameter neural network just to count repetitions of a phrase the user has already explicitly selected?**
+I asked myself: **Do I actually need a multi-million-parameter neural network just to count repetitions of a phrase the user has already explicitly selected?**
 
 The answer was a resounding **no**.
 
@@ -85,9 +85,9 @@ The answer was a resounding **no**.
 
 The user already tells the app which dhikr they are reciting: *SubhanAllah*, *Alhamdulillah*, or *Astaghfirullah*. The task is not open-domain transcription; it is **rhythmic acoustic repetition verification**.
 
-We scrapped the neural models entirely. No ONNX runtime, no PyTorch exports, no voice donation pipeline, and no heavy neural weights.
+I scrapped the neural models entirely. No ONNX runtime, no PyTorch exports, no voice donation pipeline, and no heavy neural weights.
 
-Instead, we engineered a native Dart digital signal processing engine: the **Speech Envelope Analyzer (ARe)**.
+Instead, I engineered a native Dart digital signal processing engine: the **Speech Envelope Analyzer (ARe)**.
 
 ```
 Microphone Stream (16kHz Mono 16-bit Linear PCM)
@@ -126,19 +126,19 @@ Building on real hardware revealed hurdles that theoretical designs never antici
 
 ### Hurdle 1: The Hand-Clap & Table-Bump Dilemma
 Early tests showed that a sharp hand clap or phone bump against a desk could cause a false count.  
-**The Solution:** We analyzed the time-domain waveforms. A clap is a mechanical impulse lasting only **30ms to 120ms**. Human vocal tract phonation physically requires at least **440ms to 800ms** to articulate syllables. We established a hard physical duration floor: any sound under **200ms** is unconditionally discarded, and repetition periods under **440ms** are rejected. Claps, snaps, and knocks produce zero false counts.
+**The Solution:** I analyzed the time-domain waveforms. A clap is a mechanical impulse lasting only **30ms to 120ms**. Human vocal tract phonation physically requires at least **440ms to 800ms** to articulate syllables. I established a hard physical duration floor: any sound under **200ms** is unconditionally discarded, and repetition periods under **440ms** are rejected. Claps, snaps, and knocks produce zero false counts.
 
 ### Hurdle 2: Voice Guide Speaker-to-Mic Feedback Loop (Hardware AEC)
 In Voice Guide mode, the phone's speaker chants the dhikr to set the pace while the user recites along in unison. But the phone's microphone was picking up the speaker's own output, counting even when the user remained silent!  
-**The Solution:** We enabled device-level **Acoustic Echo Cancellation (AEC)** by routing audio through hardware communication channels (`AVAudioSessionModeVoiceChat` on iOS and `VOICE_COMMUNICATION` audio source on Android). The operating system's dedicated DSP chip cancels the speaker output from the microphone feed in real time, enabling the user to recite alongside the audio guide without feedback loops.
+**The Solution:** I enabled device-level **Acoustic Echo Cancellation (AEC)** by routing audio through hardware communication channels (`AVAudioSessionModeVoiceChat` on iOS and `VOICE_COMMUNICATION` audio source on Android). The operating system's dedicated DSP chip cancels the speaker output from the microphone feed in real time, enabling the user to recite alongside the audio guide without feedback loops.
 
 ### Hurdle 3: The Classical Waqf & Sukūn Coda Bug
 Native speech synthesizers were pronouncing *"Astaghfirullaha"* with an accusative fatḥa case ending instead of the proper devotional pause *"Astaghfirullah"*.  
-**The Solution:** In classical Arabic grammar, devotional chanting requires **Waqf** (pausal termination) with a **Sukūn** on terminal letters. We algorithmically scrubbed trailing case vowels from all 27 canonical adhkar and injected sentence boundaries (`.`) into the audio guide pipeline to enforce authentic pausal recitation.
+**The Solution:** In classical Arabic grammar, devotional chanting requires **Waqf** (pausal termination) with a **Sukūn** on terminal letters. I algorithmically scrubbed trailing case vowels from all 27 canonical adhkar and injected sentence boundaries (`.`) into the audio guide pipeline to enforce authentic pausal recitation.
 
 ### Hurdle 4: The iOS Shadda-Fatḥa Glyph Glitch
 On iOS CoreText, combining standard Unicode tashkeel on the sacred name of Allah (*Lafdh al-Jalālah*) caused a floating, superimposed fatḥa to render on top of the shadda.  
-**The Solution:** We replaced composed text strings with the canonical Quranic Unicode representation `ٱللّٰه`, rendering classical Uthmani typography with pristine beauty across all iOS and Android devices.
+**The Solution:** I replaced composed text strings with the canonical Quranic Unicode representation `ٱللّٰه`, rendering classical Uthmani typography with pristine beauty across all iOS and Android devices.
 
 ---
 
