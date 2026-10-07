@@ -48,7 +48,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
   AudioGuideMode _audioGuideMode = AudioGuideMode.haptic;
   bool _isBreathingPause = false;
   int _tripletCount = 0;
-  int _breathCycleReps = 3;
+  int _breathCycleReps = 5;
   bool _userVoiceDetectedThisRep = false;
   int _countAtSweepStart = 0;
   Timer? _breathingTimer;

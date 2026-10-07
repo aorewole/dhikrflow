@@ -24,6 +24,17 @@ class ArabicSpeechGuideService {
       await _tts.setVolume(1.0);
       await _tts.setPitch(1.0);
 
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        await _tts.setIosAudioCategory(
+          IosTextToSpeechAudioCategory.playAndRecord,
+          [
+            IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
+            IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+          ],
+          IosTextToSpeechAudioMode.voiceChat,
+        );
+      }
+
       _tts.setStartHandler(() {
         _isPlaying = true;
         onPlayStateChanged?.call(true);

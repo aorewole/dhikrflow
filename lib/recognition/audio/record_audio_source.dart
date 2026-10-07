@@ -58,6 +58,19 @@ class RecordAudioSource implements AudioSource {
           autoGain: true,
           echoCancel: true,
           noiseSuppress: true,
+          androidConfig: const AndroidRecordConfig(
+            audioSource: AndroidAudioSource.voiceCommunication,
+            audioManagerMode: AudioManagerMode.modeInCommunication,
+            speakerphone: true,
+          ),
+          iosConfig: const IosRecordConfig(
+            categoryOptions: [
+              IosAudioCategoryOption.defaultToSpeaker,
+              IosAudioCategoryOption.allowBluetooth,
+              IosAudioCategoryOption.allowBluetoothA2DP,
+            ],
+            allowHapticsAndSystemSoundsDuringRecording: true,
+          ),
         );
         rawStream = await _recorder.startStream(config);
         activeSampleRate = rate;

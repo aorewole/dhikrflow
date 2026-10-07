@@ -17,6 +17,18 @@ DhikrPulse is **not** a voice assistant and does **not** rely on cloud services.
 
 ---
 
+## 📖 How to Use DhikrPulse (Quick Tutorial)
+
+1. **Select Your Dhikr:** Choose from the 27 authentic Sunnah adhkar across 6 categories (Praise, Forgiveness, Tawheed, Morning/Evening, Protection, Salawat).
+2. **Choose a Target (Optional):** Select 33, 100, or tap Open Count for continuous remembrance.
+3. **Start & Place Your Phone Down:** Tap **Start Session**. Place your phone on a table, beside your prayer mat, or keep it in your pocket. Hand moves completely away from the screen.
+4. **Recite Aloud Naturally:** Speak the dhikr at your comfortable pace. The golden Tajweed letter sweep visualizes your tempo, and the counter ring advances automatically upon each repetition.
+5. **Mindful Breath Pauses:** Every 5 repetitions (customizable from 1 to 10), the app pauses guidance for 1.8 seconds (*"5 / 5 • Take a breath... 🌿"*) with a gentle 3-stage tactile wave, allowing you to inhale before continuing.
+6. **Silent Manual Mode:** In quiet masjids or public gatherings, tap **Pause** and use the prominent **Manual +1 Tap** thumb button to count silently without audio.
+7. **Replay In-App Spotlight Tour:** Tap the **`?` Help button** in the top right corner anytime to review the interactive on-screen walkthrough.
+
+---
+
 ## 🔒 Non-Negotiable Privacy Guarantees
 
 1. **100% Offline (Airplane Mode Ready):** Core functionality operates entirely with zero Internet connection. No network permissions are requested.

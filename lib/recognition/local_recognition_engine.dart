@@ -145,30 +145,30 @@ class LocalRecognitionEngine implements RecognitionEngine {
     final tokenCount = ArabicNormalizer.tokenize(target.arabic).length;
     if (tokenCount <= 2) {
       // For 2-token dhikr (e.g. أستغفر الله, الحمد لله, الله أكبر):
-      // 800ms hangover bridges inter-repetition breath pauses during discrete recitation.
-      // 2800ms continuous slice targets ~3-4 reps before slicing at an acoustic valley.
-      pipeline.vad.hangoverDuration = const Duration(milliseconds: 800);
+      // Fast 320ms hangover ensures immediate, snappy count updates upon word completion,
+      // while continuous valley search slices multi-rep runs naturally.
+      pipeline.vad.hangoverDuration = const Duration(milliseconds: 320);
+      pipeline.vad.continuousSpeechSliceDuration =
+          const Duration(milliseconds: 2000);
+      pipeline.vad.continuousValleySearchWindow =
+          const Duration(milliseconds: 700);
+      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 6000);
+    } else if (tokenCount <= 4) {
+      // 3-4 token dhikr (e.g. سبحان الله وبحمده, لا إله إلا الله).
+      pipeline.vad.hangoverDuration = const Duration(milliseconds: 320);
       pipeline.vad.continuousSpeechSliceDuration =
           const Duration(milliseconds: 2800);
       pipeline.vad.continuousValleySearchWindow =
           const Duration(milliseconds: 900);
-      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 8000);
-    } else if (tokenCount <= 4) {
-      // 3-4 token dhikr (e.g. سبحان الله وبحمده, لا إله إلا الله).
-      pipeline.vad.hangoverDuration = const Duration(milliseconds: 400);
-      pipeline.vad.continuousSpeechSliceDuration =
-          const Duration(milliseconds: 3600);
-      pipeline.vad.continuousValleySearchWindow =
-          const Duration(milliseconds: 1200);
-      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 8000);
+      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 7000);
     } else {
       // 5+ token dhikr (e.g. لا حول ولا قوة إلا بالله).
       pipeline.vad.hangoverDuration = const Duration(milliseconds: 350);
       pipeline.vad.continuousSpeechSliceDuration =
-          const Duration(milliseconds: 4800);
+          const Duration(milliseconds: 3800);
       pipeline.vad.continuousValleySearchWindow =
-          const Duration(milliseconds: 1500);
-      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 9000);
+          const Duration(milliseconds: 1200);
+      pipeline.vad.maxSpeechDuration = const Duration(milliseconds: 8000);
     }
 
     // Initialize local ASR engine if present
