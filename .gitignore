@@ -12,6 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 *.onnx
+*.ort
 *.tar.bz2
 scratch/
 *.aiff
